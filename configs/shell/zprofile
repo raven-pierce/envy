@@ -1,0 +1,35 @@
+# ENVY ZSH Profile Configuration
+
+# Homebrew
+if [[ $(uname -m) == "arm64" ]]; then
+    eval "$(/opt/homebrew/bin/brew shellenv)"
+else
+    eval "$(/usr/local/bin/brew shellenv)"
+fi
+
+# NVM - Node Version Manager
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
+
+# JetBrains Toolbox
+export PATH="$HOME/Library/Application Support/JetBrains/Toolbox/scripts:$PATH"
+
+# Editor
+if [[ -n "$SSH_CLIENT" || -n "$SSH_TTY" || -n "$SSH_CONNECTION" ]]; then
+    # SSH
+    export EDITOR="nano"
+    export VISUAL="nano"
+else
+    # Local
+    export EDITOR="nano"
+    export VISUAL="nano"
+fi
+
+# Language and Locale
+export LANG="en_US.UTF-8"
+export LC_ALL="en_US.UTF-8"
+
+# Less Pager
+export LESS="-R"
+export LESSHISTFILE="-"

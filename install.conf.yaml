@@ -1,0 +1,53 @@
+- defaults:
+    link:
+      relink: true
+      create: true
+    shell:
+      stdout: true
+      stderr: true
+
+- clean: ['~']
+
+- link:
+    # Shell Configuration
+    ~/.zshrc: configs/shell/zshrc
+    ~/.zprofile: configs/shell/zprofile
+    ~/.config/aliases: configs/shell/aliases
+    
+    # Git Configuration
+    ~/.gitignore: configs/git/gitignore
+    
+    # Neovim Configuration
+    ~/.config/nvim: configs/nvim
+    
+    # Window Management
+    ~/.config/yabai: configs/yabai
+    ~/.config/skhd: configs/skhd
+    ~/.config/sketchybar: configs/sketchybar
+    ~/.config/borders: configs/borders
+    
+    # Other Tools
+    ~/.config/bat: configs/bat
+    ~/.config/fastfetch: configs/fastfetch
+    ~/.config/yazi: configs/yazi
+
+- create:
+    - ~/Desktop/Screenshots
+
+- shell:
+    - description: "Setting executable permissions for window manager configs..."
+      command: |
+        [ -f ~/.config/yabai/yabairc ] && chmod +x ~/.config/yabai/yabairc
+        [ -f ~/.config/skhd/skhdrc ] && chmod +x ~/.config/skhd/skhdrc  
+        [ -f ~/.config/sketchybar/sketchybarrc ] && chmod +x ~/.config/sketchybar/sketchybarrc
+      stdout: true
+      stderr: true 
+
+    - description: "Fixing Oh My Zsh insecure directories permissions..."
+      command: |
+        if command -v brew >/dev/null 2>&1; then
+          chmod go-w "$(brew --prefix)/share" 2>/dev/null || true
+          chmod -R go-w "$(brew --prefix)/share/zsh" 2>/dev/null || true
+        fi
+      stdout: true
+      stderr: true 
