@@ -1,56 +1,104 @@
 #!/bin/zsh
 # Laravel Development Aliases
 
-# Basics
+# Laravel Mode Toggle System
+LARAVEL_MODE_FILE="$HOME/.laravel_mode"
+
+# Initialize mode if file doesn't exist (default to sail)
+if [[ ! -f "$LARAVEL_MODE_FILE" ]]; then
+    echo "sail" > "$LARAVEL_MODE_FILE"
+fi
+
+# Read current mode
+LARAVEL_MODE=$(cat "$LARAVEL_MODE_FILE")
+
+# Function to get the current Laravel command prefix
+get_laravel_cmd() {
+    if [[ "$LARAVEL_MODE" == "php" ]]; then
+        echo "php artisan"
+    else
+        echo "sh \$([ -f sail ] && echo sail || echo vendor/bin/sail) artisan"
+    fi
+}
+
+# Function to toggle Laravel mode
+toggle_sail() {
+    local current_mode=$(cat "$LARAVEL_MODE_FILE")
+    if [[ "$current_mode" == "sail" ]]; then
+        echo "php" > "$LARAVEL_MODE_FILE"
+        echo "🔄 Laravel mode switched to: php artisan"
+        LARAVEL_MODE="php"
+    else
+        echo "sail" > "$LARAVEL_MODE_FILE"
+        echo "🔄 Laravel mode switched to: sail artisan"
+        LARAVEL_MODE="sail"
+    fi
+    # Update the variable and re-define aliases
+    _reload_laravel_aliases
+}
+
+# Function to show current Laravel mode
+laravel_mode_status() {
+    local current_mode=$(cat "$LARAVEL_MODE_FILE")
+    echo "📋 Current Laravel mode: $current_mode artisan"
+}
+
+# Function to reload all Laravel aliases
+_reload_laravel_aliases() {
+    # Aliases using dynamic command
 alias sail='sh $([ -f sail ] && echo sail || echo vendor/bin/sail)'
-alias artisan='sail artisan'
-alias tinker='sail artisan tinker'
-alias duster='sail bin duster fix'
+alias artisan="$(get_laravel_cmd)"
+alias tinker="$(get_laravel_cmd) tinker"
+alias duster="$(get_laravel_cmd | sed 's/artisan/bin/') duster fix"
 
 # Development
-alias pas='sail artisan serve'
-alias pats='sail artisan test'
-alias pascw='sail artisan schedule:work'
+alias pas="$(get_laravel_cmd) serve"
+alias pats="$(get_laravel_cmd) test"
+alias pascw="$(get_laravel_cmd) schedule:work"
 
 # Database
-alias pam='sail artisan migrate'
-alias pamf='sail artisan migrate:fresh'
-alias pamfs='sail artisan migrate:fresh --seed'
-alias pamr='sail artisan migrate:rollback'
-alias pads='sail artisan db:seed'
-alias padw='sail artisan db:wipe'
-alias pamte='sail artisan migrate --env=testing'
-alias pamtef='sail artisan migrate:fresh --env=testing'
+alias pam="$(get_laravel_cmd) migrate"
+alias pamf="$(get_laravel_cmd) migrate:fresh"
+alias pamfs="$(get_laravel_cmd) migrate:fresh --seed"
+alias pamr="$(get_laravel_cmd) migrate:rollback"
+alias pads="$(get_laravel_cmd) db:seed"
+alias padw="$(get_laravel_cmd) db:wipe"
+alias pamte="$(get_laravel_cmd) migrate --env=testing"
+alias pamtef="$(get_laravel_cmd) migrate:fresh --env=testing"
 
 # Makers
-alias pamm='sail artisan make:model'
-alias pammi='sail artisan make:migration'
-alias pamc='sail artisan make:controller'
-alias pams='sail artisan make:seeder'
-alias pamt='sail artisan make:test'
-alias pamfa='sail artisan make:factory'
-alias pamp='sail artisan make:policy'
-alias pame='sail artisan make:event'
-alias pamj='sail artisan make:job'
-alias paml='sail artisan make:listener'
-alias pamn='sail artisan make:notification'
-alias pampp='sail artisan make:provider'
-alias pamcl='sail artisan make:class'
-alias pamen='sail artisan make:enum'
-alias pami='sail artisan make:interface'
-alias pamtr='sail artisan make:trait'
+alias pamm="$(get_laravel_cmd) make:model"
+alias pammi="$(get_laravel_cmd) make:migration"
+alias pamc="$(get_laravel_cmd) make:controller"
+alias pams="$(get_laravel_cmd) make:seeder"
+alias pamt="$(get_laravel_cmd) make:test"
+alias pamfa="$(get_laravel_cmd) make:factory"
+alias pamp="$(get_laravel_cmd) make:policy"
+alias pame="$(get_laravel_cmd) make:event"
+alias pamj="$(get_laravel_cmd) make:job"
+alias paml="$(get_laravel_cmd) make:listener"
+alias pamn="$(get_laravel_cmd) make:notification"
+alias pampp="$(get_laravel_cmd) make:provider"
+alias pamcl="$(get_laravel_cmd) make:class"
+alias pamen="$(get_laravel_cmd) make:enum"
+alias pami="$(get_laravel_cmd) make:interface"
+alias pamtr="$(get_laravel_cmd) make:trait"
 
 # Clears
-alias pacac='sail artisan cache:clear'
-alias pacoc='sail artisan config:clear'
-alias pavic='sail artisan view:clear'
-alias paroc='sail artisan route:clear'
-alias paopc='sail artisan optimize:clear'
+alias pacac="$(get_laravel_cmd) cache:clear"
+alias pacoc="$(get_laravel_cmd) config:clear"
+alias pavic="$(get_laravel_cmd) view:clear"
+alias paroc="$(get_laravel_cmd) route:clear"
+alias paopc="$(get_laravel_cmd) optimize:clear"
 
 # Queues
-alias paqf='sail artisan queue:failed'
-alias paqft='sail artisan queue:failed-table'
-alias paql='sail artisan queue:listen'
-alias paqr='sail artisan queue:retry'
-alias paqt='sail artisan queue:table'
-alias paqw='sail artisan queue:work' 
+alias paqf="$(get_laravel_cmd) queue:failed"
+alias paqft="$(get_laravel_cmd) queue:failed-table"
+alias paql="$(get_laravel_cmd) queue:listen"
+alias paqr="$(get_laravel_cmd) queue:retry"
+alias paqt="$(get_laravel_cmd) queue:table"
+alias paqw="$(get_laravel_cmd) queue:work"
+}
+
+# Load aliases initially
+_reload_laravel_aliases 
