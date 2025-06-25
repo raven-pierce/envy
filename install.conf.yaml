@@ -10,11 +10,13 @@
 
 - link:
     # Shell Configuration
-    ~/.zshrc: configs/shell/zshrc
     ~/.zprofile: configs/shell/zprofile
+    ~/.zshrc: configs/shell/zshrc
+    ~/.p10k.zsh: configs/shell/p10k.zsh
     ~/.config/aliases: configs/shell/aliases
     
     # Git Configuration
+    ~/.gitconfig: configs/git/gitconfig
     ~/.gitignore: configs/git/gitignore
     
     # Neovim Configuration
@@ -28,6 +30,7 @@
     
     # Other Tools
     ~/.config/bat: configs/bat
+    ~/.config/btop: configs/btop
     ~/.config/fastfetch: configs/fastfetch
     ~/.config/yazi: configs/yazi
 

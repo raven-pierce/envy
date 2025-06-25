@@ -9,15 +9,15 @@ rcmd - return : open -n -a "warp"
 # rcmd - return : open -n -a "ghostty"
 
 # change layout of desktop
-ctrl + alt - b : yabai -m space --layout bsp
-ctrl + alt - f : yabai -m space --layout float
-ctrl + alt - s : yabai -m space --layout stack
+#ctrl + alt - b : yabai -m space --layout bsp
+# ctrl + alt - f : yabai -m space --layout float
+# ctrl + alt - s : yabai -m space --layout stack
 
 # change window focus within space
-alt - j : yabai -m window --focus south
-alt - k : yabai -m window --focus north
-alt - h : yabai -m window --focus west
-alt - l : yabai -m window --focus east
+alt - s: yabai -m window --focus south
+alt - w: yabai -m window --focus north
+alt - a: yabai -m window --focus west
+alt - d: yabai -m window --focus east
 
 # create desktop and follow focus - uses jq for parsing json (brew install jq)
 cmd + alt - n : yabai -m space --create && \
@@ -46,10 +46,10 @@ shift + alt - t : yabai -m window --toggle float --grid 4:4:1:1:2:2
 
 ## Stacks (shift + ctrl - ...)
 # Add the active window to the window or stack to the {direction}: shift + ctrl - {j, k, l, h}
-shift + ctrl - h    : yabai -m window  west --stack $(yabai -m query --windows --window | jq -r '.id') && sketchybar --trigger window_focus
-shift + ctrl - j    : yabai -m window south --stack $(yabai -m query --windows --window | jq -r '.id') && sketchybar --trigger window_focus
-shift + ctrl - k    : yabai -m window north --stack $(yabai -m query --windows --window | jq -r '.id') && sketchybar --trigger window_focus
-shift + ctrl - l : yabai -m window  east --stack $(yabai -m query --windows --window | jq -r '.id') && sketchybar --trigger window_focus
+shift + ctrl - a    : yabai -m window  west --stack $(yabai -m query --windows --window | jq -r '.id') && sketchybar --trigger window_focus
+shift + ctrl - s    : yabai -m window south --stack $(yabai -m query --windows --window | jq -r '.id') && sketchybar --trigger window_focus
+shift + ctrl - w    : yabai -m window north --stack $(yabai -m query --windows --window | jq -r '.id') && sketchybar --trigger window_focus
+shift + ctrl - d : yabai -m window  east --stack $(yabai -m query --windows --window | jq -r '.id') && sketchybar --trigger window_focus
 
 # maximize a window
 shift + alt - f : yabai -m window --toggle zoom-fullscreen
@@ -64,16 +64,16 @@ shift + alt - a : yabai -m window --swap west
 shift + alt - d : yabai -m window --swap east
 
 # resize window
-alt + shift - h : yabai -m window west --resize right:-20:0 2> /dev/null || yabai -m window --resize right:-20:0
-alt + shift - k : yabai -m window north --resize bottom:0:20 2> /dev/null || yabai -m window --resize bottom:0:20
-alt + shift - j : yabai -m window south --resize top:0:-20 2> /dev/null || yabai -m window --resize top:0:-20
-alt + shift - l : yabai -m window east --resize left:20:0 2> /dev/null || yabai -m window --resize left:20:0
+alt + shift - a : yabai -m window west --resize right:-20:0 2> /dev/null || yabai -m window --resize right:-20:0
+alt + shift - s : yabai -m window north --resize bottom:0:20 2> /dev/null || yabai -m window --resize bottom:0:20
+alt + shift - w : yabai -m window south --resize top:0:-20 2> /dev/null || yabai -m window --resize top:0:-20
+alt + shift - d : yabai -m window east --resize left:20:0 2> /dev/null || yabai -m window --resize left:20:0
 
 # move window and split
-ctrl + alt - j : yabai -m window --warp south
-ctrl + alt - k : yabai -m window --warp north
-ctrl + alt - h : yabai -m window --warp west
-ctrl + alt - l : yabai -m window --warp east
+ctrl + alt - s : yabai -m window --warp south
+ctrl + alt - w : yabai -m window --warp north
+ctrl + alt - a : yabai -m window --warp west
+ctrl + alt - d : yabai -m window --warp east
 
 # move window to display top and bottom
 # shift + alt - g : yabai -m window --display west; yabai -m display --focus north;

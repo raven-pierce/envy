@@ -1,0 +1,4 @@
+# Git identity is set by the installer (scripts/install.sh --configs) or by hand.
+# Fork this repo, then run the installer or add a [user] section with your details.
+[init]
+	defaultBranch = main
