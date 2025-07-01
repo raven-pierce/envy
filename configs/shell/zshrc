@@ -54,7 +54,6 @@ source <(fzf --zsh)
 # ZSH Syntax Highlighting
 source $(brew --prefix)/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
 
-
 # Herd PHP Binary
 export PATH="/Users/raven/Library/Application Support/Herd/bin/":$PATH
 
