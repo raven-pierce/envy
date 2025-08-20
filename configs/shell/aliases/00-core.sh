@@ -17,7 +17,6 @@ alias ls="eza --color=always --grid --long --git --no-filesize --icons=always --
 alias ll="eza -la --icons --git"
 alias la="eza -a"
 alias lt="eza --tree --level=2 --long --icons --git --color=always"
-alias rm="trash"
 alias cp="cp -iv"
 alias mv="mv -iv"
 
