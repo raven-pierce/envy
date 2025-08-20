@@ -61,6 +61,7 @@ brew "wget"
 # Media & Audio Tools
 brew "nowplaying-cli"
 brew "switchaudio-osx"
+cask "focusrite-control-2"
 
 # ============================================================================
 # Version Control & Development Core
@@ -134,6 +135,7 @@ cask "tableplus"
 # ============================================================================
 
 # Security & System
+brew "pinentry-mac"
 cask "1password"
 cask "little-snitch"
 cask "raycast"
