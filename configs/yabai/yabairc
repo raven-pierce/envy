@@ -1,25 +1,23 @@
 #!/usr/bin/env sh
 
-# This command is the one that loads the scripting addition
-# Configure your user to execute `yabai --load-sa` as the root user without having to enter a password.
+#  This command is the one that loads the scripting addition.
+#  Configure your user to execute `yabai --load-sa` as the root user without having to enter a password.
 #  https://github.com/koekeishiya/yabai/wiki/Installing-yabai-(latest-release)#configure-scripting-addition
 #
-#  If you have any issue with space creation or anything of that nature, you will have to reload the sa and kill the dock
+#  If you have any issue with space creation or anything of that nature, you will have to reload the sa and kill the dock.
 #  https://github.com/koekeishiya/yabai/issues/2151#issuecomment-1987040750
 
 yabai -m signal --add event=dock_did_restart action="sudo yabai --load-sa"
 sudo yabai --load-sa
 
-# Configure the layout mode
-# "stack" - keeps a single app on the front
-# "bsp" - binary space partitioning enables automatic tiling (partitioning)
-# "float" - default mode, windows are not managed
-# yabai -m config layout stack
-yabai -m config layout bsp
-# yabai -m config layout float
+###############################################################################
+# Layout Settings
+###############################################################################
 
-# ###############################################################################
-#                          Custom padding settings
+yabai -m config layout bsp
+
+###############################################################################
+# Padding Settings
 ###############################################################################
 yabai -m config top_padding 16
 yabai -m config bottom_padding 16
@@ -28,14 +26,28 @@ yabai -m config right_padding 16
 yabai -m config window_gap 16
 
 ###############################################################################
-#                                  Misc
+# Focus & Mouse Settings
 ###############################################################################
-yabai -m config external_bar all:40:0
 yabai -m config mouse_follows_focus off
-yabai -m config focus_follows_mouse autofocus # set focus follows mouse mode (default: off, options: off, autoraise, autofocus)
+yabai -m config focus_follows_mouse autofocus # options: off, autoraise, autofocus
+yabai -m mouse_modifier fn # set mouse interaction modifier key (options: ctrl, opt, cmd, fn)
+yabai -m mouse_action1 move
+yabai -m mouse_action2 resize
+yabai -m mouse_drop_action swap
+
+###############################################################################
+# Window Behavior Settings
+###############################################################################
 yabai -m config window_zoom_persist off
 yabai -m config window_placement second_child
 yabai -m config window_shadow float
+yabai -m split_ratio 0.50
+yabai -m auto_balance on
+yabai -m auto_padding on
+
+###############################################################################
+# Window Appearance Settings
+###############################################################################
 yabai -m window_opacity off
 yabai -m window_opacity_duration 0.4
 yabai -m active_window_opacity 1.0
@@ -43,70 +55,42 @@ yabai -m normal_window_opacity 0.7
 yabai -m window_animation_duration 0.0
 yabai -m window_animation_easing ease_in_sine
 yabai -m insert_feedback_color 0xff9dd274
-yabai -m split_ratio 0.50
-yabai -m auto_balance on
-yabai -m auto_padding on
-yabai -m mouse_modifier fn # set mouse interaction modifier key (default: fn, options: ctrl, opt, cmd)
-yabai -m mouse_action1 move
-yabai -m mouse_action2 resize
-yabai -m mouse_drop_action swap
 
 ###############################################################################
 #                              Excluded apps
 ###############################################################################
 
-# Apps excluded from window management, so you can resize them and move them around
-yabai -m rule --add app="Reminders$" manage=off
-yabai -m rule --add app="Pictogram$" manage=off
-yabai -m rule --add app="IINA$" manage=off
-yabai -m rule --add app="Antinote$" manage=off
-yabai -m rule --add app="Numi$" manage=off
-#yabai -m rule --add app="^zoom.us$" manage=off
+# System & Settings Apps
 yabai -m rule --add app="^System Settings$" manage=off
-yabai -m rule --add app="^OBS$" manage-off
-yabai -m rule --add app="^Be Focused$" manage=off
-yabai -m rule --add app="^DaisyDisk$" manage=off
-yabai -m rule --add app="^1Password$" manage=off
-yabai -m rule --add label="Finder" app="^Finder$" title="(Co(py|nnect)|Move|Info|Pref)" manage=off
-yabai -m rule --add app="^FaceTime$" manage=off
 yabai -m rule --add label="About This Mac" app="System Information" title="About This Mac" manage=off
-yabai -m rule --add app="^(LuLu|Calculator|Software Update|Dictionary|Time Machine|System Settings|Archive Utility|Python|App Store|Messages|Activity Monitor|Raycast|mpv)$" manage=off
+yabai -m rule --add app="^Software Update$" manage=off
+yabai -m rule --add app="^Time Machine$" manage=off
+yabai -m rule --add app="^Activity Monitor$" manage=off
+
+# Security & Productivity Apps  
+yabai -m rule --add app="^1Password$" manage=off
+yabai -m rule --add app="Reminders$" manage=off
+yabai -m rule --add app="^Raycast$" manage=off
+
+# Communication & Media Apps
+yabai -m rule --add app="^FaceTime$" manage=off
+yabai -m rule --add app="^Messages$" manage=off
+yabai -m rule --add app="^mpv$" manage=off  # Media player - better as floating window for video playback
+#yabai -m rule --add app="^zoom.us$" manage=off
+
+# Utility Apps
+yabai -m rule --add app="^Calculator$" manage=off
+yabai -m rule --add app="^Dictionary$" manage=off
+yabai -m rule --add app="^Archive Utility$" manage=off
+yabai -m rule --add app="^App Store$" manage=off
+
+# Finder Special Windows
+yabai -m rule --add label="Finder" app="^Finder$" title="(Co(py|nnect)|Move|Info|Pref)" manage=off
 
 ###############################################################################
 #                              Signals
 ###############################################################################
 
-# Add signal to make yabai focus the other window when I close one
-yabai -m signal --add event=window_destroyed action="yabai -m query --windows --window &> /dev/null || yabai -m window --focus recent || yabai -m window --focus first"
-
-# S K E T C H Y B A R  E V E N T S
+# SketchyBar Events
 yabai -m signal --add event=window_focused action="sketchybar --trigger window_focus &> /dev/null"
 yabai -m signal --add event=window_title_changed action="sketchybar --trigger title_change &> /dev/null"
-
-# Delete free spaces
-# yabai -m signal --add event=space_changed action='/Users/Klutchevski/CLI/yabai-space-autoclose &> /dev/null & disown'
-#
-# yabai -m signal --add event=space_created action='
-#   prev_space=$(yabai -m query --spaces --space)
-#   new_space=$(yabai -m query --spaces --space "$YABAI_SPACE_INDEX")
-#   space_id=$(jq -e "select(.\"is-native-fullscreen\") | .id" <<< "$new_space") || exit
-#   json_space=$(jq "{ id: $space_id, homeSpace: .id } | tojson" <<< "$prev_space")
-#   label=$(jq -Rr "ltrimstr(\"\\\"\") | rtrimstr(\"\\\"\")" <<< "$json_space")
-#   yabai -m space "$YABAI_SPACE_INDEX" --label "$label"
-# '
-#
-# yabai -m signal --add event=space_changed action='
-#   home_spaces=$(yabai -m query --spaces | jq "map(.label | try fromjson | .homeSpace // empty)")
-#   yabai -m query --spaces \
-#   | jq "
-#       map(
-#         select(.windows | length == 0)
-#         | select(.\"has-focus\" | not)
-#         | select(.id as \$x | $home_spaces | index(\$x) | not)
-#       )
-#       | reverse
-#       | .[]
-#       | .index
-#   " \
-#   | xargs -I{} yabai -m space --destroy {}
-# '
