@@ -27,11 +27,14 @@ source $(brew --prefix)/share/zsh-autosuggestions/zsh-autosuggestions.zsh
 
 # ZSH Completions
 if type brew &>/dev/null; then
-    FPATH=$(brew --prefix)/share/zsh-completions:$FPATH
-
-    autoload -Uz compinit
-    compinit
+    fpath=($(brew --prefix)/share/zsh-completions $fpath)
 fi
+
+# Docker CLI Completions
+fpath=(/Users/raven/.docker/completions $fpath)
+
+autoload -Uz compinit
+compinit
 
 source $ZSH/oh-my-zsh.sh
 
@@ -54,11 +57,14 @@ source <(fzf --zsh)
 # ZSH Syntax Highlighting
 source $(brew --prefix)/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
 
+# 1Password CLI Plugins
+source /Users/raven/.config/op/plugins.sh
+
 # Herd PHP Binary
 export PATH="/Users/raven/Library/Application Support/Herd/bin/":$PATH
 
 # Herd PHP 8.4 Configuration
 export HERD_PHP_84_INI_SCAN_DIR="/Users/raven/Library/Application Support/Herd/config/php/84/"
 
-# FastFetch
-f
+# Herd PHP 8.5 Configuration
+export HERD_PHP_85_INI_SCAN_DIR="/Users/raven/Library/Application Support/Herd/config/php/85/"
