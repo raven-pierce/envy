@@ -6,10 +6,10 @@
 # Taps
 # ============================================================================
 
+tap "asmvik/formulae"
 tap "felixkratz/formulae"
 tap "jesseduffield/lazydocker"
 tap "jesseduffield/lazygit"
-tap "koekeishiya/formulae"
 tap "stripe/stripe-cli"
 
 # ============================================================================
@@ -18,11 +18,11 @@ tap "stripe/stripe-cli"
 
 # Shell and Utilities
 brew "bash"
+brew "vivid"
 brew "zsh"
 brew "zsh-autosuggestions"
 brew "zsh-completions"
 brew "zsh-syntax-highlighting"
-brew "vivid"
 
 # GNU Core Utilities
 brew "coreutils"
@@ -51,11 +51,11 @@ brew "trash"
 brew "tree"
 brew "unzip"
 brew "yq"
+cask "rar"
 
 # Network Tools
 brew "curl"
 brew "nmap"
-brew "speedtest-cli"
 brew "wget"
 
 # Media & Audio Tools
@@ -67,9 +67,9 @@ cask "focusrite-control-2"
 # Version Control & Development Core
 # ============================================================================
 
+brew "gh"
 brew "git"
 brew "git-delta"
-brew "gh"
 brew "lazygit"
 
 # Security Tools
@@ -87,6 +87,7 @@ brew "skhd"
 brew "sketchybar"
 brew "yabai"
 cask "linearmouse"
+cask "logitech-g-hub"
 
 # ============================================================================
 # Programming Languages & Runtimes
@@ -102,6 +103,7 @@ brew "python"
 
 # Editors
 brew "neovim"
+cask "claude-code"
 cask "cursor"
 cask "jetbrains-toolbox"
 cask "visual-studio-code"
@@ -138,6 +140,8 @@ cask "tableplus"
 brew "pinentry-mac"
 cask "1password"
 cask "little-snitch"
+cask "mole"
+cask "mullvad-vpn"
 cask "raycast"
 
 # Terminals
@@ -175,4 +179,6 @@ cask "sf-symbols"
 # Mac App Store
 # ============================================================================
 
-#mas "Xcode", id: 497799835
+mas "1Password for Safari", id: 1569813296
+mas "uBlock Origin Lite", id: 6745342698
+mas "Xcode", id: 497799835
