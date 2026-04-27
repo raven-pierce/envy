@@ -123,7 +123,6 @@ cask "tower"
 
 brew "lazydocker"
 cask "docker-desktop"
-cask "orbstack"
 
 # ============================================================================
 # Database Management
@@ -137,10 +136,10 @@ cask "tableplus"
 # ============================================================================
 
 # Security & System
+brew "mole"
 brew "pinentry-mac"
 cask "1password"
 cask "little-snitch"
-cask "mole"
 cask "mullvad-vpn"
 cask "raycast"
 
