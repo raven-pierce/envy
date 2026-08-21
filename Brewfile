@@ -7,9 +7,11 @@
 # ============================================================================
 
 tap "asmvik/formulae"
+tap "docker/tap"
 tap "felixkratz/formulae"
 tap "jesseduffield/lazydocker"
 tap "jesseduffield/lazygit"
+tap "lerd-env/lerd"
 tap "stripe/stripe-cli"
 
 # ============================================================================
@@ -71,6 +73,7 @@ brew "gh"
 brew "git"
 brew "git-delta"
 brew "lazygit"
+brew "tuicr"
 
 # Security Tools
 brew "gnupg"
@@ -103,15 +106,17 @@ brew "python"
 
 # Editors
 brew "neovim"
+cask "claude"
 cask "claude-code"
 cask "cursor"
 cask "jetbrains-toolbox"
 cask "visual-studio-code"
 
 # Development Services
+brew "cloudflared"
+brew "lerd"
 brew "stripe"
-cask "herd"
-cask "postman"
+cask "bruno"
 
 # Git Clients
 cask "gitkraken"
@@ -123,6 +128,7 @@ cask "tower"
 
 brew "lazydocker"
 cask "docker-desktop"
+cask "sbx"
 
 # ============================================================================
 # Database Management
@@ -144,11 +150,9 @@ cask "mullvad-vpn"
 cask "raycast"
 
 # Terminals
-cask "ghostty"
 cask "warp"
 
 # Browsers
-cask "arc"
 cask "firefox"
 
 # Communication
@@ -157,12 +161,12 @@ cask "slack"
 cask "zoom"
 
 # Design & Media
-cask "cleanshot"
 cask "figma"
+cask "mactex-no-gui"
 cask "spotify"
 
 # Project Management
-cask "linear-linear"
+cask "linear"
 
 # ============================================================================
 # Fonts

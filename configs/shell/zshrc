@@ -60,11 +60,9 @@ source $(brew --prefix)/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zs
 # 1Password CLI Plugins
 source /Users/raven/.config/op/plugins.sh
 
-# Herd PHP Binary
-export PATH="/Users/raven/Library/Application Support/Herd/bin/":$PATH
+# Lerd
+export PATH="/Users/raven/.local/share/lerd/bin:$PATH"
 
-# Herd PHP 8.4 Configuration
-export HERD_PHP_84_INI_SCAN_DIR="/Users/raven/Library/Application Support/Herd/config/php/84/"
-
-# Herd PHP 8.5 Configuration
-export HERD_PHP_85_INI_SCAN_DIR="/Users/raven/Library/Application Support/Herd/config/php/85/"
+# Lerd Completions
+fpath=(/Users/raven/.local/share/zsh/site-functions $fpath)
+autoload -Uz compinit && compinit
