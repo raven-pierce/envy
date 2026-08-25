@@ -579,6 +579,62 @@ describe_plan() {
     return 0
 }
 
+resolve_link_conflicts() {
+    # Dotbot's `relink: true` replaces stray symlinks but refuses to clobber a
+    # real file/dir (that needs `force: true`, which silently destroys data). So
+    # before linking a Dotbot config, find its targets that already exist as real
+    # files — e.g. the ~/.zshrc that Oh My Zsh writes in the shell step — and,
+    # with the user's OK, back them up and move them aside so linking succeeds.
+    # Returns non-zero (caller skips the link step) if the user declines.
+    local conf=$1
+    local -a conflicts=()
+    local key path
+
+    # Pull the link targets: indented "~/...:" keys under the `- link:` block.
+    # (The `- create:` list uses "- ~/..." — a leading dash — so it won't match.)
+    # awk, not grep: the parse must not depend on which grep variant is on PATH.
+    while IFS= read -r key; do
+        key="${key%:}"
+        path="${key/#\~/${HOME}}"
+        if [[ -e "${path}" && ! -L "${path}" ]]; then
+            conflicts+=("${path}")
+        fi
+    done < <(awk '
+        /^-[[:space:]]+link:/ { inlink = 1; next }
+        /^-[[:space:]]/       { inlink = 0 }
+        inlink {
+            line = $0; sub(/#.*/, "", line)
+            if (match(line, /^[[:space:]]+~[^:]+:/)) {
+                key = substr(line, RSTART, RLENGTH)
+                gsub(/[[:space:]]/, "", key)
+                print key
+            }
+        }
+    ' "${conf}")
+
+    [[ ${#conflicts[@]} -eq 0 ]] && return 0
+
+    print_log -warn "Conflicts" "These already exist as real files and would block linking:"
+    local c
+    for c in "${conflicts[@]}"; do
+        printf '      %s\n' "${c}" >&2
+    done
+
+    if ! prompt_yes_no "Back them up and replace with symlinks?" default_yes; then
+        print_log -y "Kept" "Existing files left in place — skipping this link step"
+        return 1
+    fi
+
+    local backup_dir
+    backup_dir="${repoDir}/backups/$(date +'%Y%m%d_%H%M%S')"
+    mkdir -p "${backup_dir}"
+    for c in "${conflicts[@]}"; do
+        mv "${c}" "${backup_dir}/"
+    done
+    print_log -g "Backup" "Moved ${#conflicts[@]} file(s) to ${backup_dir}"
+    return 0
+}
+
 main() {
     enable_error_trap
     trap 'rm -f "${DOTFILES_BREWFILE:-}" 2>/dev/null || true' EXIT
@@ -685,26 +741,32 @@ main() {
     if [[ "${flg_Configs}" -eq 1 ]]; then
         print_log -info "Base dotfiles" "Linking base dotfiles..."
         setup_git_identity
-        (
-            cd "${repoDir}"
-            ./install -c install.conf.yaml
-        )
+        if resolve_link_conflicts "${repoDir}/install.conf.yaml"; then
+            (
+                cd "${repoDir}"
+                ./install -c install.conf.yaml
+            )
+        fi
     fi
 
     if [[ "${flg_WmConfigs}" -eq 1 ]]; then
         print_log -info "WM configs" "Linking window-manager configs (yabai / skhd / borders)..."
-        (
-            cd "${repoDir}"
-            ./install -c install.wm.conf.yaml
-        )
+        if resolve_link_conflicts "${repoDir}/install.wm.conf.yaml"; then
+            (
+                cd "${repoDir}"
+                ./install -c install.wm.conf.yaml
+            )
+        fi
     fi
 
     if [[ "${flg_SbarConfigs}" -eq 1 ]]; then
         print_log -info "SketchyBar config" "Linking the SketchyBar config..."
-        (
-            cd "${repoDir}"
-            ./install -c install.sketchybar.conf.yaml
-        )
+        if resolve_link_conflicts "${repoDir}/install.sketchybar.conf.yaml"; then
+            (
+                cd "${repoDir}"
+                ./install -c install.sketchybar.conf.yaml
+            )
+        fi
     fi
 
     if [[ "${flg_Macos}" -eq 1 ]]; then
