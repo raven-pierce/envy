@@ -234,8 +234,12 @@ backup_existing() {
 install_oh_my_zsh() {
     if [[ ! -d "${HOME}/.oh-my-zsh" ]]; then
         print_log -info "Oh My Zsh" "Installing Oh My Zsh..."
+        # Keep the curl inside the retried command so a transient download
+        # failure is actually re-fetched (not just the already-downloaded script).
+        # SC2016: the $(curl) is intentionally left unexpanded so bash -c runs it each retry.
+        # shellcheck disable=SC2016
         with_retry 3 run_spin "Installing Oh My Zsh" \
-            sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
+            bash -c 'sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended'
         print_log -g "Success" "Oh My Zsh installed"
     else
         print_log -y "Skip" "Oh My Zsh already installed"

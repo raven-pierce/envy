@@ -36,25 +36,31 @@ if ! run_brewfile "${brewfile}"; then
     print_log -sec "install-pkg" -warn "Partial" "Some packages may have failed — re-run: brew bundle install --file=${brewfile}"
 fi
 
-print_log -sec "install-pkg" -info "Verification" "Checking critical commands for selected groups..."
+# Skip the fixed-list check when a custom per-package selection is in play:
+# the user may have deliberately dropped one of these, so "missing" would be noise.
+if [[ -n "${DOTFILES_BREWFILE:-}" ]]; then
+    print_log -sec "install-pkg" -info "Verification" "Skipped (custom package selection)"
+else
+    print_log -sec "install-pkg" -info "Verification" "Checking critical commands for selected groups..."
 
-critical=()
-[[ "${DOTFILES_BREW_CLI}" == "1" ]] && critical+=("git" "nvim" "zsh")
-[[ "${DOTFILES_BREW_WM}" == "1" ]] && critical+=("yabai" "skhd")
-[[ "${DOTFILES_BREW_SKETCHYBAR}" == "1" ]] && critical+=("sketchybar" "lua" "luarocks")
+    critical=()
+    [[ "${DOTFILES_BREW_CLI}" == "1" ]] && critical+=("git" "nvim" "zsh")
+    [[ "${DOTFILES_BREW_WM}" == "1" ]] && critical+=("yabai" "skhd")
+    [[ "${DOTFILES_BREW_SKETCHYBAR}" == "1" ]] && critical+=("sketchybar" "lua" "luarocks")
 
-missing=()
-for cmd in "${critical[@]}"; do
-    if command_exists "${cmd}"; then
-        print_log -sec "install-pkg" -g "ok" "${cmd}"
-    else
-        print_log -sec "install-pkg" -r "missing" "${cmd}"
-        missing+=("${cmd}")
+    missing=()
+    for cmd in "${critical[@]}"; do
+        if command_exists "${cmd}"; then
+            print_log -sec "install-pkg" -g "ok" "${cmd}"
+        else
+            print_log -sec "install-pkg" -r "missing" "${cmd}"
+            missing+=("${cmd}")
+        fi
+    done
+
+    if [[ ${#missing[@]} -gt 0 ]]; then
+        print_log -sec "install-pkg" -warn "PATH" "Some tools are missing from PATH; a new shell may be required"
     fi
-done
-
-if [[ ${#missing[@]} -gt 0 ]]; then
-    print_log -sec "install-pkg" -warn "PATH" "Some tools are missing from PATH; a new shell may be required"
 fi
 
 print_log -sec "install-pkg" -g "Complete" "Package installation completed"

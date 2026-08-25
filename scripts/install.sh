@@ -377,10 +377,20 @@ _select_group_packages() {
         printf '%s' "${labels[*]}"
     )"
 
-    local chosen
+    local chosen keep_all=0
     chosen="$(printf '%s\n' "${labels[@]}" | gum choose --no-limit --height 20 \
         --header="${group} packages — space toggles, enter keeps the checked set" \
-        --selected="${preselect}")" || true
+        --selected="${preselect}")" || keep_all=1
+
+    if [[ "${keep_all}" -eq 1 ]]; then
+        # gum exited non-zero (cancelled / interrupted) — keep the pre-checked
+        # defaults rather than silently dropping every package in the group.
+        print_log -y "Kept" "${group}: selection cancelled — keeping all packages"
+        for label in "${labels[@]}"; do
+            printf '%s\n' "${key_of[${label}]}" >>"${keepfile}"
+        done
+        return 0
+    fi
 
     for label in "${labels[@]}"; do
         if grep -Fxq "${label}" <<<"${chosen}"; then
