@@ -33,6 +33,15 @@ is_tty() {
     [[ -r /dev/tty && -w /dev/tty ]] || [[ -t 0 && -t 1 ]]
 }
 
+has_gum() {
+    command -v gum >/dev/null 2>&1
+}
+
+ui_rich() {
+    # Rich gum UI only when not in --yes mode, gum is present, and interactive.
+    [[ "${use_default:-}" != "--yes" ]] && has_gum && is_tty
+}
+
 prompt_yes_no() {
     # prompt_yes_no "Question" default_yes|default_no
     local prompt=$1
@@ -42,6 +51,16 @@ prompt_yes_no() {
 
     if [[ "${use_default:-}" == "--yes" ]]; then
         [[ "${default}" == "default_yes" ]] && return 0 || return 1
+    fi
+
+    if ui_rich; then
+        local gum_default=true
+        [[ "${default}" == "default_no" ]] && gum_default=false
+        if gum confirm --default="${gum_default}" "${prompt}"; then
+            return 0
+        else
+            return 1
+        fi
     fi
 
     if [[ ! -r "${tty_in}" ]]; then
@@ -54,6 +73,48 @@ prompt_yes_no() {
     else
         read -r -p "${prompt} [y/N] " reply <"${tty_in}" || true
         [[ "${reply}" =~ ^[Yy]$ ]]
+    fi
+}
+
+prompt_input() {
+    # prompt_input "Label" "default" -> echoes entered value (or default)
+    local label=$1
+    local default=${2:-}
+    local reply
+
+    if [[ "${use_default:-}" == "--yes" ]] || ! is_tty; then
+        printf '%s' "${default}"
+        return 0
+    fi
+
+    if ui_rich; then
+        gum input --prompt "${label}: " --value "${default}" --placeholder "${default}"
+        return 0
+    fi
+
+    read -r -p "${label} [${default}]: " reply </dev/tty || true
+    printf '%s' "${reply:-${default}}"
+}
+
+print_section() {
+    local title=$1
+    if ui_rich; then
+        gum style --border rounded --padding "0 1" --margin "1 0" \
+            --border-foreground 212 "${title}"
+    else
+        print_log -b "==>" "${title}"
+    fi
+}
+
+run_step() {
+    # run_step "Message" cmd args...   (spinner only when rich; NOT for brew bundle)
+    local msg=$1
+    shift
+    if ui_rich; then
+        gum spin --spinner dot --title "${msg}" -- "$@"
+    else
+        print_log -info "Step" "${msg}"
+        "$@"
     fi
 }
 
