@@ -223,7 +223,7 @@ parse_args() {
     done
 }
 
-interactive_picker() {
+picker_basic() {
     print_log -b "Picker" "Choose what to install (defaults shown in brackets)"
     echo ""
 
@@ -273,7 +273,56 @@ interactive_picker() {
     if prompt_yes_no "Apply macOS system defaults" default_no; then
         flg_Macos=1
     fi
+    return 0
+}
 
+gum_picker() {
+    local -a comps=(
+        "Packages (Homebrew Brewfile)"
+        "Shell (Oh My Zsh, Powerlevel10k, NVM)"
+        "Base configs (Dotbot)"
+        "WM configs (yabai/skhd/SketchyBar/borders)"
+        "Start services"
+        "macOS defaults"
+    )
+    local chosen
+    chosen="$(printf '%s\n' "${comps[@]}" | gum choose --no-limit \
+        --header="Select components — space toggles, enter confirms" \
+        --selected="Packages (Homebrew Brewfile),Shell (Oh My Zsh, Powerlevel10k, NVM),Base configs (Dotbot)")" || true
+
+    grep -q "^Packages" <<<"${chosen}" && flg_Packages=1
+    grep -q "^Shell" <<<"${chosen}" && flg_Shell=1
+    grep -q "^Base configs" <<<"${chosen}" && flg_Configs=1
+    grep -q "^WM configs" <<<"${chosen}" && flg_WmConfigs=1
+    grep -q "^Start services" <<<"${chosen}" && flg_Services=1
+    grep -q "^macOS defaults" <<<"${chosen}" && flg_Macos=1
+
+    if [[ "${flg_Packages}" -eq 1 ]]; then
+        local -a groups=(
+            "CLI / core tools / fonts"
+            "GUI apps (casks + Mac App Store)"
+            "Window management (yabai, skhd, borders)"
+            "SketchyBar (lua, luarocks, audio helpers)"
+        )
+        local gchosen
+        gchosen="$(printf '%s\n' "${groups[@]}" | gum choose --no-limit \
+            --header="Homebrew groups" \
+            --selected="CLI / core tools / fonts")" || true
+
+        grep -q "^CLI" <<<"${gchosen}" && brew_cli=1 || brew_cli=0
+        grep -q "^GUI apps" <<<"${gchosen}" && brew_apps=1 || brew_apps=0
+        grep -q "^Window management" <<<"${gchosen}" && brew_wm=1 || brew_wm=0
+        grep -q "^SketchyBar" <<<"${gchosen}" && brew_sbar=1 || brew_sbar=0
+    fi
+    return 0
+}
+
+run_interactive() {
+    if ui_rich; then
+        gum_picker
+    else
+        picker_basic
+    fi
     flg_AnyComponent=1
 }
 
@@ -322,15 +371,17 @@ main() {
         exec "${scrDir}/reset_yabai.sh"
     fi
 
+    local pre_done=0
     if [[ "${flg_AnyComponent}" -eq 0 ]]; then
         if is_tty; then
-            cat <<'EOF'
-
-  macOS Dotfiles Setup
-  --------------------
-
-EOF
-            interactive_picker
+            print_section "roost — macOS setup"
+            # Install prerequisites (Homebrew + gum) BEFORE the picker so the
+            # rich picker is available on first run. Skip on --dry-run.
+            if [[ "${flg_DryRun}" -eq 0 ]]; then
+                "${scrDir}/install_pre.sh"
+                pre_done=1
+            fi
+            run_interactive
         else
             print_log -err "Non-interactive" "No component flags given. Pass --all or specific components (see --help)."
             exit 1
@@ -371,7 +422,7 @@ EOF
     [[ "${flg_Services}" -eq 1 ]] && print_log -g " +" "Services"
     echo ""
 
-    if [[ "${need_pre}" -eq 1 ]]; then
+    if [[ "${need_pre}" -eq 1 && "${pre_done:-0}" -ne 1 ]]; then
         print_log -info "Pre-Install" "Running prerequisites..."
         "${scrDir}/install_pre.sh"
     fi

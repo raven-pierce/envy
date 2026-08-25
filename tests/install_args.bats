@@ -70,6 +70,24 @@ setup() {
     [ "$status" -ne 0 ]
 }
 
+@test "gum_picker maps selections to component and brew-group flags" {
+    reset_flags
+    gum() {
+        case "$*" in
+            *"Select components"*) printf 'Packages (Homebrew Brewfile)\nBase configs (Dotbot)\n' ;;
+            *"Homebrew groups"*) printf 'CLI / core tools / fonts\nSketchyBar (lua, luarocks, audio helpers)\n' ;;
+        esac
+    }
+    gum_picker
+    [ "$flg_Packages" -eq 1 ]
+    [ "$flg_Configs" -eq 1 ]
+    [ "$flg_Shell" -eq 0 ]
+    [ "$brew_cli" -eq 1 ]
+    [ "$brew_apps" -eq 0 ]
+    [ "$brew_wm" -eq 0 ]
+    [ "$brew_sbar" -eq 1 ]
+}
+
 @test "no components + non-interactive exits non-zero (no prompts)" {
     run bash -c '
         cd "'"${BATS_TEST_DIRNAME}"'/.."
