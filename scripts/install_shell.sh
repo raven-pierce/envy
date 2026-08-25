@@ -18,7 +18,8 @@ mkdir -p "${plugin_dir}"
 
 if [[ ! -d "${plugin_dir}/fzf-zsh-plugin" ]]; then
     print_log -sec "install-shell" -info "Plugin" "Installing fzf-zsh-plugin..."
-    git clone --depth 1 https://github.com/unixorn/fzf-zsh-plugin.git "${plugin_dir}/fzf-zsh-plugin"
+    run_spin "Cloning fzf-zsh-plugin" \
+        git clone --depth 1 https://github.com/unixorn/fzf-zsh-plugin.git "${plugin_dir}/fzf-zsh-plugin"
     print_log -sec "install-shell" -g "Success" "fzf-zsh-plugin installed"
 else
     print_log -sec "install-shell" -y "Skip" "fzf-zsh-plugin already installed"

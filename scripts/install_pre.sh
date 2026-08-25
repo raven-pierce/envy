@@ -54,7 +54,7 @@ print_log -sec "pre-install" -info "Privacy" "Disabling Homebrew analytics..."
 brew analytics off
 
 print_log -sec "pre-install" -info "Update" "Updating Homebrew..."
-brew update
+run_spin "Updating Homebrew" brew update
 
 mkdir -p "${cacheDir}/logs"
 

@@ -545,10 +545,20 @@ main() {
     fi
 
     print_log -g "SUCCESS" "Installation finished"
-    print_log -info "Next" "Restart your terminal (or source ~/.zshrc)"
-    [[ "${flg_Shell}" -eq 1 ]] && print_log -info "Next" "Run 'p10k configure' to customize your prompt"
-    [[ "${flg_Services}" -eq 1 || "${brew_wm}" -eq 1 ]] && print_log -info "Next" "Log out/in so window management picks up Accessibility permissions"
-    print_log -info "Docs" "See README.md for customization and key bindings"
+    if ui_rich; then
+        {
+            echo "# Next steps"
+            echo "- Restart your terminal, or \`source ~/.zshrc\`"
+            [[ "${flg_Shell}" -eq 1 ]] && echo "- Run \`p10k configure\` to customize your prompt"
+            [[ "${flg_Services}" -eq 1 || "${brew_wm}" -eq 1 ]] && echo "- Log out/in so window management picks up Accessibility permissions"
+            echo "- See \`README.md\` for customization and key bindings"
+        } | gum format
+    else
+        print_log -info "Next" "Restart your terminal (or source ~/.zshrc)"
+        [[ "${flg_Shell}" -eq 1 ]] && print_log -info "Next" "Run 'p10k configure' to customize your prompt"
+        [[ "${flg_Services}" -eq 1 || "${brew_wm}" -eq 1 ]] && print_log -info "Next" "Log out/in so window management picks up Accessibility permissions"
+        print_log -info "Docs" "See README.md for customization and key bindings"
+    fi
 }
 
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
