@@ -106,85 +106,69 @@ print_section() {
     fi
 }
 
-print_log() {
-    local logDir="${cacheDir}/logs"
-    local logFile=""
-    local use_log=0
-
-    if mkdir -p "${logDir}" 2>/dev/null; then
-        logFile="${logDir}/$(date +'%y%m%d_%Hh%Mm%Ss').log"
-        use_log=1
-    fi
-
-    format_line() {
-        while (("$#")); do
-            case "$1" in
-                -r | +r)
-                    printf '\033[31m%s\033[0m' "$2"
-                    shift 2
-                    ;;
-                -g | +g)
-                    printf '\033[32m%s\033[0m' "$2"
-                    shift 2
-                    ;;
-                -y | +y)
-                    printf '\033[33m%s\033[0m' "$2"
-                    shift 2
-                    ;;
-                -b | +b)
-                    printf '\033[34m%s\033[0m' "$2"
-                    shift 2
-                    ;;
-                -m | +m)
-                    printf '\033[35m%s\033[0m' "$2"
-                    shift 2
-                    ;;
-                -c | +c)
-                    printf '\033[36m%s\033[0m' "$2"
-                    shift 2
-                    ;;
-                -w | +w)
-                    printf '\033[37m%s\033[0m' "$2"
-                    shift 2
-                    ;;
-                -stat)
-                    printf '\033[30;46m %s \033[0m :: ' "$2"
-                    shift 2
-                    ;;
-                -crit)
-                    printf '\033[97;41m %s \033[0m :: ' "$2"
-                    shift 2
-                    ;;
-                -warn)
-                    printf 'WARNING :: \033[30;43m %s \033[0m :: ' "$2"
-                    shift 2
-                    ;;
-                -info)
-                    printf 'INFO :: \033[30;44m %s \033[0m :: ' "$2"
-                    shift 2
-                    ;;
-                -sec)
-                    printf '\033[32m[%s] \033[0m' "$2"
-                    shift 2
-                    ;;
-                -err)
-                    printf 'ERROR :: \033[4;31m%s \033[0m' "$2"
-                    shift 2
-                    ;;
-                *)
-                    printf '%s' "$1"
-                    shift
-                    ;;
-            esac
-        done
-        printf '\n'
-    }
-
-    if [[ "${use_log}" -eq 1 ]]; then
-        format_line "$@" | tee >(sed 's/\x1b\[[0-9;]*m//g' >>"${logFile}")
+run_spin() {
+    # run_spin "Title" cmd args...
+    # Show a gum spinner for a long step (output preserved via --show-output);
+    # otherwise run the command directly so its output streams normally.
+    local title=$1
+    shift
+    if ui_rich; then
+        gum spin --spinner dot --show-output --title "${title}" -- "$@"
     else
-        format_line "$@"
+        "$@"
     fi
+}
+
+_log_to_file() {
+    # Append a plain (ANSI-free) line to the session log, best-effort.
+    local line=$1
+    local logDir="${cacheDir}/logs"
+    mkdir -p "${logDir}" 2>/dev/null || return 0
+    printf '%s\n' "${line}" >>"${logDir}/$(date +'%y%m%d_%Hh%Mm%Ss').log"
+}
+
+print_log() {
+    # print_log [-sec SECTION] -TAG "Label" "Message"
+    # TAG: -info | -warn | -y (notice) | -err | -r (error) | -crit | -g (success) | -b (step)
+    # Renders via `gum log` when gum is present, else a compact ANSI line.
+    local sec=""
+    if [[ "${1:-}" == "-sec" ]]; then
+        sec="$2"
+        shift 2
+    fi
+    local tag="${1:-}"
+    local label="${2:-}"
+    local message="${3:-}"
+
+    local level="info"
+    case "${tag}" in
+        -warn | -y) level="warn" ;;
+        -err | -r | -crit) level="error" ;;
+        *) level="info" ;;
+    esac
+
+    local sec_prefix=""
+    [[ -n "${sec}" ]] && sec_prefix="[${sec}] "
+    _log_to_file "${sec_prefix}${label}: ${message}"
+
+    if has_gum; then
+        if [[ -n "${sec}" ]]; then
+            gum log --level "${level}" --prefix "${sec}" "${label}: ${message}" >&2
+        else
+            gum log --level "${level}" "${label}: ${message}" >&2
+        fi
+        return 0
+    fi
+
+    local reset=$'\033[0m' color=""
+    case "${tag}" in
+        -err | -r | -crit) color=$'\033[31m' ;;
+        -warn | -y) color=$'\033[33m' ;;
+        -g) color=$'\033[32m' ;;
+        -b) color=$'\033[34m' ;;
+        *) color=$'\033[36m' ;;
+    esac
+    printf '%s%s%s %s\n' "${color}" "${sec_prefix}${label}" "${reset}" "${message}" >&2
 }
 
 check_macos_version() {
@@ -217,7 +201,8 @@ backup_existing() {
 install_oh_my_zsh() {
     if [[ ! -d "${HOME}/.oh-my-zsh" ]]; then
         print_log -info "Oh My Zsh" "Installing Oh My Zsh..."
-        sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
+        run_spin "Installing Oh My Zsh" \
+            sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
         print_log -g "Success" "Oh My Zsh installed"
     else
         print_log -y "Skip" "Oh My Zsh already installed"
@@ -229,7 +214,8 @@ install_powerlevel10k() {
 
     if [[ ! -d "${p10k_dir}" ]]; then
         print_log -info "Powerlevel10k" "Installing Powerlevel10k..."
-        git clone --depth=1 https://github.com/romkatv/powerlevel10k.git "${p10k_dir}"
+        run_spin "Cloning Powerlevel10k" \
+            git clone --depth=1 https://github.com/romkatv/powerlevel10k.git "${p10k_dir}"
         print_log -g "Success" "Powerlevel10k installed"
     else
         print_log -y "Skip" "Powerlevel10k already installed"
@@ -239,7 +225,8 @@ install_powerlevel10k() {
 install_nvm() {
     if [[ ! -d "${HOME}/.nvm" ]]; then
         print_log -info "NVM" "Installing Node Version Manager..."
-        git clone https://github.com/nvm-sh/nvm.git "${HOME}/.nvm"
+        run_spin "Cloning nvm" \
+            git clone https://github.com/nvm-sh/nvm.git "${HOME}/.nvm"
         (
             cd "${HOME}/.nvm"
             git checkout "$(git describe --abbrev=0 --tags --match 'v[0-9]*' "$(git rev-list --tags --max-count=1)")"
