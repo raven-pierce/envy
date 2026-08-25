@@ -219,7 +219,7 @@ parse_args() {
                 exit 0
                 ;;
             *)
-                print_log -err "Usage" "Unknown option: $1"
+                print_log -err "Usage" "Unrecognized argument: $1"
                 usage
                 exit 1
                 ;;
@@ -258,7 +258,7 @@ picker_basic() {
     fi
     prompt_yes_no "Apply macOS system defaults" default_no && flg_Macos=1
 
-    # Any brew group not chosen is explicitly off.
+    # Any brew group not chosen is explicitly off (clean 0/1 picker output).
     [[ "${brew_cli}" -lt 0 ]] && brew_cli=0
     [[ "${brew_apps}" -lt 0 ]] && brew_apps=0
     [[ "${brew_wm}" -lt 0 ]] && brew_wm=0
@@ -304,7 +304,7 @@ gum_picker() {
     }
     grep -q "^macOS system defaults" <<<"${chosen}" && flg_Macos=1
 
-    # A brew group not chosen above is explicitly off.
+    # A brew group not chosen above is explicitly off (clean 0/1 picker output).
     [[ "${brew_cli}" -lt 0 ]] && brew_cli=0
     [[ "${brew_apps}" -lt 0 ]] && brew_apps=0
     [[ "${brew_wm}" -lt 0 ]] && brew_wm=0
@@ -426,6 +426,15 @@ run_interactive() {
         gum_picker
     else
         picker_basic
+    fi
+
+    # If the picker was dismissed with nothing chosen, don't march on to a
+    # no-op "success" — say so and stop.
+    local total=$((flg_Packages + flg_Shell + flg_Configs + flg_WmConfigs + \
+        flg_WmServices + flg_SbarConfigs + flg_SbarService + flg_Macos))
+    if [[ "${total}" -eq 0 ]]; then
+        print_log -warn "Nothing selected" "No features chosen — nothing to do"
+        exit 0
     fi
     flg_AnyComponent=1
 }
