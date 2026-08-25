@@ -65,6 +65,11 @@ flg_DryRun=0
 flg_AnyComponent=0
 flg_ResetYabai=0
 
+# Hostname collected by the interactive picker (only when macOS defaults are
+# chosen). Empty means "leave the hostname unchanged"; the flag-driven path
+# still honors a COMPUTER_NAME set in the environment.
+hostName=""
+
 # Brew subbundles: -1 = unset (derive from context), 0 = off, 1 = on
 brew_cli=-1
 brew_apps=-1
@@ -92,6 +97,7 @@ reset_flags() {
     flg_DryRun=0
     flg_AnyComponent=0
     flg_ResetYabai=0
+    hostName=""
     brew_cli=-1
     brew_apps=-1
     brew_wm=-1
@@ -256,7 +262,10 @@ picker_basic() {
         prompt_yes_no "  Link the SketchyBar config?" default_yes && flg_SbarConfigs=1
         prompt_yes_no "  Start the SketchyBar service now?" default_yes && flg_SbarService=1
     fi
-    prompt_yes_no "Apply macOS system defaults" default_no && flg_Macos=1
+    if prompt_yes_no "Apply macOS system defaults" default_no; then
+        flg_Macos=1
+        hostName="$(prompt_input "Computer hostname (blank to keep current)" "")"
+    fi
 
     # Any brew group not chosen is explicitly off (clean 0/1 picker output).
     [[ "${brew_cli}" -lt 0 ]] && brew_cli=0
@@ -332,6 +341,11 @@ gum_picker() {
         else
             print_log -y "Skip" "sketchybar deselected — skipping its config and service"
         fi
+    fi
+
+    # Hostname is a macOS default, so it's only offered when that feature is on.
+    if [[ "${flg_Macos}" -eq 1 ]]; then
+        hostName="$(prompt_input "Computer hostname (blank to keep current)" "")"
     fi
     return 0
 }
@@ -572,11 +586,36 @@ describe_plan() {
     [[ "${flg_Configs}" -eq 1 ]] && print_log -info "Base dotfiles" "Would link install.conf.yaml"
     [[ "${flg_WmConfigs}" -eq 1 ]] && print_log -info "WM configs" "Would link install.wm.conf.yaml (yabai / skhd / borders)"
     [[ "${flg_SbarConfigs}" -eq 1 ]] && print_log -info "SketchyBar config" "Would link install.sketchybar.conf.yaml"
-    [[ "${flg_Macos}" -eq 1 ]] && print_log -info "macOS" "Would run scripts/macos.sh"
+    if [[ "${flg_Macos}" -eq 1 ]]; then
+        local host="${hostName:-${COMPUTER_NAME:-}}"
+        if [[ -n "${host}" ]]; then
+            print_log -info "macOS" "Would run scripts/macos.sh (hostname → ${host})"
+        else
+            print_log -info "macOS" "Would run scripts/macos.sh (hostname unchanged)"
+        fi
+    fi
+    command_exists mo && print_log -info "Touch ID" "Would offer 'mo touchid enable' (sudo via Touch ID)"
     if [[ "${flg_WmServices}" -eq 1 || "${flg_SbarService}" -eq 1 ]]; then
         print_log -info "Services" "Would start services (wm=${flg_WmServices} sketchybar=${flg_SbarService})"
     fi
     return 0
+}
+
+maybe_enable_touchid() {
+    # mole ships the `mo` CLI; `mo touchid enable` wires up Touch ID for sudo
+    # (via a pam sudo_local drop-in). Only offer it interactively — it changes a
+    # security setting and prompts for the admin password, so never unattended.
+    command_exists mo || return 0
+    { [[ "${use_default:-}" == "--yes" ]] || ! is_tty; } && return 0
+
+    if prompt_yes_no "Enable Touch ID for sudo (mo touchid enable)?" default_yes; then
+        print_log -info "Touch ID" "Enabling Touch ID for sudo..."
+        if mo touchid enable; then
+            print_log -g "Touch ID" "Enabled — sudo now accepts your fingerprint"
+        else
+            print_log -warn "Touch ID" "'mo touchid enable' failed — run it yourself later"
+        fi
+    fi
 }
 
 resolve_link_conflicts() {
@@ -701,7 +740,13 @@ main() {
             [[ "${flg_SbarConfigs}" -eq 1 ]] && echo "- **SketchyBar config**"
             [[ "${flg_WmServices}" -eq 1 ]] && echo "- **Window-manager services**"
             [[ "${flg_SbarService}" -eq 1 ]] && echo "- **SketchyBar service**"
-            [[ "${flg_Macos}" -eq 1 ]] && echo "- **macOS defaults**"
+            if [[ "${flg_Macos}" -eq 1 ]]; then
+                if [[ -n "${hostName}" ]]; then
+                    echo "- **macOS defaults** — hostname \`${hostName}\`"
+                else
+                    echo "- **macOS defaults**"
+                fi
+            fi
         } | gum format
     else
         print_log -info "Plan" "Selected:"
@@ -712,7 +757,13 @@ main() {
         [[ "${flg_SbarConfigs}" -eq 1 ]] && print_log -g " +" "SketchyBar config"
         [[ "${flg_WmServices}" -eq 1 ]] && print_log -g " +" "Window-manager services"
         [[ "${flg_SbarService}" -eq 1 ]] && print_log -g " +" "SketchyBar service"
-        [[ "${flg_Macos}" -eq 1 ]] && print_log -g " +" "macOS defaults"
+        if [[ "${flg_Macos}" -eq 1 ]]; then
+            if [[ -n "${hostName}" ]]; then
+                print_log -g " +" "macOS defaults (hostname ${hostName})"
+            else
+                print_log -g " +" "macOS defaults"
+            fi
+        fi
     fi
     echo ""
 
@@ -732,6 +783,10 @@ main() {
             "${scrDir}/install_sketchybar.sh"
         fi
     fi
+
+    # Offer Touch ID for sudo before the sudo-heavy steps (macOS defaults), so
+    # those prompts can be approved by fingerprint. Runs only if mole is present.
+    maybe_enable_touchid
 
     if [[ "${flg_Shell}" -eq 1 ]]; then
         print_log -info "Shell" "Setting up shell environment..."
@@ -771,7 +826,9 @@ main() {
 
     if [[ "${flg_Macos}" -eq 1 ]]; then
         print_log -info "macOS" "Applying system defaults..."
-        bash "${scrDir}/macos.sh"
+        # Prefer the hostname picked interactively; fall back to a COMPUTER_NAME
+        # from the environment (flag-driven runs). Empty → macos.sh leaves it.
+        COMPUTER_NAME="${hostName:-${COMPUTER_NAME:-}}" bash "${scrDir}/macos.sh"
     fi
 
     if [[ "${flg_WmServices}" -eq 1 || "${flg_SbarService}" -eq 1 ]]; then

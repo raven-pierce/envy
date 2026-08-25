@@ -122,7 +122,8 @@ This reinstalls the scripting addition and refreshes the hash-pinned sudoers ent
 - Git Identity: the repo ships `configs/git/gitconfig` with no `[user]` section. On first `--configs` run you are prompted for name, email, and whether to enable GPG signing (choosing a key from your keyring), and the values are written straight into `configs/git/gitconfig` before Dotbot links it. Since you fork first, personalizing the tracked file is expected; run `git update-index --skip-worktree configs/git/gitconfig` if you want to keep your details out of future commits.
 - Packages: in the interactive picker, deselect individual packages per feature; for permanent changes edit `Brewfile` (keep the `if cli` / `if apps` / `if wm` / `if sbar` guards), then re-run with the group flags you want.
 - Configs: edit under `configs/`, update the matching Dotbot YAML (`install.conf.yaml`, `install.wm.conf.yaml`, `install.sketchybar.conf.yaml`), then run `./install -c <file>`.
-- Hostname: with `--macos`: `COMPUTER_NAME=MyMac ./scripts/macos.sh`.
+- Hostname: choosing macOS system defaults in the interactive picker prompts for a hostname (blank keeps the current one). For flag-driven runs, set it via the environment: `COMPUTER_NAME=MyMac ./scripts/install.sh --macos` (or `COMPUTER_NAME=MyMac ./scripts/macos.sh`).
+- Touch ID for sudo: if [`mole`](https://mole.fit) is installed (the `mo` CLI, part of the CLI group), the interactive installer offers to run `mo touchid enable` so `sudo` accepts your fingerprint. It's offered before the sudo-heavy macOS-defaults step; skipped in `--yes` / non-interactive runs. You can enable it later by hand with `mo touchid enable`.
 
 ## Key bindings
 
