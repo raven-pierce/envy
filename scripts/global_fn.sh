@@ -24,6 +24,22 @@ homebrew_installed() {
     command_exists brew
 }
 
+ensure_brew_on_path() {
+    # Put a freshly-installed Homebrew on PATH for THIS process (and its
+    # children, since brew shellenv exports PATH). Needed on a first run: the
+    # installer added brew, but the shell that launched us never re-read its
+    # profile, so `brew`/`gum` aren't found until this runs.
+    command_exists brew && return 0
+    local b
+    for b in /opt/homebrew/bin/brew /usr/local/bin/brew; do
+        if [[ -x "${b}" ]]; then
+            eval "$("${b}" shellenv)"
+            return 0
+        fi
+    done
+    return 0
+}
+
 xcode_tools_installed() {
     xcode-select -p &>/dev/null
 }

@@ -379,8 +379,9 @@ select_packages() {
 
 _select_group_packages() {
     local group=$1 orig=$2 keepfile=$3
-    local -a labels=()
-    local -A key_of=()
+    # Parallel indexed arrays (labels[i] ↔ keys[i]). No associative array here:
+    # macOS ships bash 3.2, where `local -A` is a hard error.
+    local -a labels=() keys=()
     local type name spec label
 
     # spec is unused here (only the generator needs it) but is part of the shared TSV.
@@ -388,7 +389,7 @@ _select_group_packages() {
     while IFS=$'\t' read -r type name spec; do
         label="${name}  [${type}]"
         labels+=("${label}")
-        key_of["${label}"]="${type}:${name}"
+        keys+=("${type}:${name}")
     done < <(brewfile_candidates "${orig}" "${group}")
 
     [[ ${#labels[@]} -eq 0 ]] && return 0
@@ -404,19 +405,20 @@ _select_group_packages() {
         --header="${group} packages (keep the ones you want)" \
         --selected="${preselect}")" || keep_all=1
 
+    local i
     if [[ "${keep_all}" -eq 1 ]]; then
         # gum exited non-zero (cancelled / interrupted) — keep the pre-checked
         # defaults rather than silently dropping every package in the group.
         print_log -y "Kept" "${group}: selection cancelled — keeping all packages"
-        for label in "${labels[@]}"; do
-            printf '%s\n' "${key_of[${label}]}" >>"${keepfile}"
+        for i in "${!labels[@]}"; do
+            printf '%s\n' "${keys[$i]}" >>"${keepfile}"
         done
         return 0
     fi
 
-    for label in "${labels[@]}"; do
-        if grep -Fxq "${label}" <<<"${chosen}"; then
-            printf '%s\n' "${key_of[${label}]}" >>"${keepfile}"
+    for i in "${!labels[@]}"; do
+        if grep -Fxq "${labels[$i]}" <<<"${chosen}"; then
+            printf '%s\n' "${keys[$i]}" >>"${keepfile}"
         fi
     done
 }
@@ -595,6 +597,10 @@ main() {
             if [[ "${flg_DryRun}" -eq 0 ]]; then
                 "${scrDir}/install_pre.sh"
                 pre_done=1
+                # install_pre.sh installed brew + gum in a child process, so its
+                # PATH change didn't reach us. Pick brew up here so the picker
+                # below gets the rich (gum) UI on a first run.
+                ensure_brew_on_path
             fi
             run_interactive
         else
@@ -657,6 +663,9 @@ main() {
     if [[ "${need_pre}" -eq 1 && "${pre_done:-0}" -ne 1 ]]; then
         print_log -info "Pre-Install" "Running prerequisites..."
         "${scrDir}/install_pre.sh"
+        # Brew was just installed in a child — surface it here so the package
+        # step (and other brew callers spawned from us) find it on PATH.
+        ensure_brew_on_path
     fi
 
     if [[ "${flg_Packages}" -eq 1 ]]; then

@@ -39,14 +39,19 @@ fi
 print_log -sec "pre-install" -info "Homebrew" "Checking Homebrew..."
 if ! homebrew_installed; then
     print_log -sec "pre-install" -warn "Missing" "Installing Homebrew..."
-    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-
-    # Apple Silicon: ensure brew is on PATH for the rest of this session
-    if [[ -x /opt/homebrew/bin/brew ]]; then
-        eval "$(/opt/homebrew/bin/brew shellenv)"
-    elif [[ -x /usr/local/bin/brew ]]; then
-        eval "$(/usr/local/bin/brew shellenv)"
+    # Attach the real terminal so Homebrew runs interactively — it can prompt
+    # for the sudo password and the RETURN-to-continue confirm. Piped in via
+    # `curl | bash`, our stdin is the (closed) pipe, which makes Homebrew flip
+    # to NONINTERACTIVE: it never prompts and then fails needing passwordless
+    # sudo. With no terminal at all, ask for NONINTERACTIVE explicitly.
+    if is_tty; then
+        /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" </dev/tty
+    else
+        NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
     fi
+
+    # Put brew on PATH for the rest of this session (Apple Silicon + Intel).
+    ensure_brew_on_path
     print_log -sec "pre-install" -g "Success" "Homebrew installed"
 else
     print_log -sec "pre-install" -g "Found" "Homebrew already installed"
