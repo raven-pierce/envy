@@ -12,6 +12,10 @@ BASEDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 while [[ $# -gt 0 ]]; do
     case "$1" in
         -c | --config)
+            if [[ $# -lt 2 ]]; then
+                echo "install: -c/--config requires a config file argument" >&2
+                exit 1
+            fi
             CONFIG="$2"
             shift 2
             ;;

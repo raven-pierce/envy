@@ -279,16 +279,18 @@ picker_basic() {
 gum_picker() {
     local -a comps=(
         "Packages (Homebrew Brewfile)"
-        "Shell (Oh My Zsh, Powerlevel10k, NVM)"
+        "Shell (Oh My Zsh / Powerlevel10k / NVM)"
         "Base configs (Dotbot)"
         "WM configs (yabai/skhd/SketchyBar/borders)"
         "Start services"
         "macOS defaults"
     )
     local chosen
+    # NOTE: gum --selected is comma-separated, so option labels must not
+    # contain commas (use " / " instead) or pre-selection breaks.
     chosen="$(printf '%s\n' "${comps[@]}" | gum choose --no-limit \
         --header="Select components — space toggles, enter confirms" \
-        --selected="Packages (Homebrew Brewfile),Shell (Oh My Zsh, Powerlevel10k, NVM),Base configs (Dotbot)")" || true
+        --selected="Packages (Homebrew Brewfile),Shell (Oh My Zsh / Powerlevel10k / NVM),Base configs (Dotbot)")" || true
 
     grep -q "^Packages" <<<"${chosen}" && flg_Packages=1
     grep -q "^Shell" <<<"${chosen}" && flg_Shell=1
@@ -301,8 +303,8 @@ gum_picker() {
         local -a groups=(
             "CLI / core tools / fonts"
             "GUI apps (casks + Mac App Store)"
-            "Window management (yabai, skhd, borders)"
-            "SketchyBar (lua, luarocks, audio helpers)"
+            "Window management (yabai / skhd / borders)"
+            "SketchyBar (lua / luarocks / audio)"
         )
         local gchosen
         gchosen="$(printf '%s\n' "${groups[@]}" | gum choose --no-limit \

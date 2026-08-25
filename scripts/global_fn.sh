@@ -106,18 +106,6 @@ print_section() {
     fi
 }
 
-run_step() {
-    # run_step "Message" cmd args...   (spinner only when rich; NOT for brew bundle)
-    local msg=$1
-    shift
-    if ui_rich; then
-        gum spin --spinner dot --title "${msg}" -- "$@"
-    else
-        print_log -info "Step" "${msg}"
-        "$@"
-    fi
-}
-
 print_log() {
     local logDir="${cacheDir}/logs"
     local logFile=""
