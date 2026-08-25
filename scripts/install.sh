@@ -1,275 +1,379 @@
 #!/usr/bin/env bash
-#|---/ /+--------------------------+---/ /|#
-#|--/ /-| Main installation script |--/ /-|#
-#|-/ /--| ENVY Project             |-/ /--|#
-#|/ /---+--------------------------+/ /---|#
+# macOS dotfiles installer — component-based.
 
-cat <<"EOF"
+set -euo pipefail
 
--------------------------------------------------
-    ███████╗███╗   ██╗██╗   ██╗██╗   ██╗
-    ██╔════╝████╗  ██║██║   ██║╚██╗ ██╔╝
-    █████╗  ██╔██╗ ██║██║   ██║ ╚████╔╝ 
-    ██╔══╝  ██║╚██╗██║╚██╗ ██╔╝  ╚██╔╝  
-    ███████╗██║ ╚████║ ╚████╔╝    ██║   
-    ╚══════╝╚═╝  ╚═══╝  ╚═══╝     ╚═╝   
-                                        
-    macOS Development Environment Setup
--------------------------------------------------
+scrDir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=global_fn.sh
+source "${scrDir}/global_fn.sh"
 
-EOF
-
-#--------------------------------#
-# import variables and functions #
-#--------------------------------#
-scrDir="$(dirname "$(realpath "$0")")"
-if ! source "${scrDir}/global_fn.sh"; then
-    echo "Error: unable to source global_fn.sh..."
-    exit 1
-fi
-
-#------------------#
-# evaluate options #
-#------------------#
-flg_Install=0
-flg_Restore=0
-flg_Service=0
-flg_Shell=0
-flg_DryRun=0
-
-while getopts "idrshnt" RunStep; do
-    case $RunStep in
-    i) flg_Install=1 ;;
-    d)
-        flg_Install=1
-        export use_default="--yes"
-        ;;
-    r) flg_Restore=1 ;;
-    s) flg_Service=1 ;;
-    h) flg_Shell=1 ;;
-    n) flg_DryRun=1 ;;
-    t) flg_DryRun=1 ;;
-    *)
-        cat <<EOF
+usage() {
+    cat <<EOF
 Usage: $0 [options]
-            i : [i]nstall packages via Homebrew
-            d : install with [d]efaults (no prompts)
-            r : [r]estore configuration files
-            s : configure [s]ervices and system preferences
-            h : setup s[h]ell environment (zsh, Oh My Zsh, etc.)
-            n : [n]o execute / dry run mode
-            t : [t]est run (same as -n)
+
+Components (select at least one, or use interactive mode on a TTY):
+  --packages      Install from Brewfile (see brew group flags below)
+  --shell         Set up Oh My Zsh, Powerlevel10k, NVM
+  --configs       Link base dotfiles via Dotbot
+  --wm-configs    Link window manager configs via Dotbot
+  --services      Start window management / SketchyBar services
+  --macos         Apply macOS defaults (scripts/macos.sh)
+  --all           Enable every component above (all brew groups)
+
+Brew groups (only apply with --packages / --all / interactive packages):
+  --brew-cli / --no-brew-cli               Core CLI, fonts (default: on)
+  --brew-apps / --no-brew-apps             GUI casks + Mac App Store
+  --brew-wm / --no-brew-wm                 yabai / skhd / borders
+  --brew-sketchybar / --no-brew-sketchybar SketchyBar, lua, luarocks, audio helpers
+
+Behavior:
+  --yes, -y       Accept defaults / skip yes-no prompts where applicable
+  --dry-run, -n   Print what would run without making changes
+  -h, --help      Show this help
+
+With no component flags:
+  - Interactive TTY  → guided component picker (including brew subbundles)
+  - Non-interactive  → error (pass flags or --all)
 
 Examples:
-        install.sh              # Full installation (equivalent to -irsh)
-        install.sh -i           # Install packages only
-        install.sh -r           # Restore configs only
-        install.sh -irsh        # Full installation with all components
-        install.sh -n           # Dry run to see what would be executed
-
+  $0                                  # interactive picker
+  $0 --packages --shell --configs
+  $0 --packages --no-brew-apps --brew-sketchybar --no-brew-wm
+  $0 --all --dry-run
 EOF
-        exit 1
-        ;;
+}
+
+flg_Packages=0
+flg_Shell=0
+flg_Configs=0
+flg_WmConfigs=0
+flg_Services=0
+flg_Macos=0
+flg_DryRun=0
+flg_AnyComponent=0
+
+# Brew subbundles: -1 = unset (derive from context), 0 = off, 1 = on
+brew_cli=-1
+brew_apps=-1
+brew_wm=-1
+brew_sbar=-1
+
+mark_component() {
+    flg_AnyComponent=1
+}
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --packages | --pkg)
+            flg_Packages=1
+            mark_component
+            shift
+            ;;
+        --shell)
+            flg_Shell=1
+            mark_component
+            shift
+            ;;
+        --configs)
+            flg_Configs=1
+            mark_component
+            shift
+            ;;
+        --wm-configs)
+            flg_WmConfigs=1
+            mark_component
+            shift
+            ;;
+        --services)
+            flg_Services=1
+            mark_component
+            shift
+            ;;
+        --macos)
+            flg_Macos=1
+            mark_component
+            shift
+            ;;
+        --brew-cli)
+            brew_cli=1
+            shift
+            ;;
+        --no-brew-cli)
+            brew_cli=0
+            shift
+            ;;
+        --brew-apps)
+            brew_apps=1
+            shift
+            ;;
+        --no-brew-apps)
+            brew_apps=0
+            shift
+            ;;
+        --brew-wm)
+            brew_wm=1
+            shift
+            ;;
+        --no-brew-wm)
+            brew_wm=0
+            shift
+            ;;
+        --brew-sketchybar | --brew-sbar)
+            brew_sbar=1
+            shift
+            ;;
+        --no-brew-sketchybar | --no-brew-sbar)
+            brew_sbar=0
+            shift
+            ;;
+        --all)
+            flg_Packages=1
+            flg_Shell=1
+            flg_Configs=1
+            flg_WmConfigs=1
+            flg_Services=1
+            flg_Macos=1
+            brew_cli=1
+            brew_apps=1
+            brew_wm=1
+            brew_sbar=1
+            mark_component
+            shift
+            ;;
+        --yes | -y | -d)
+            export use_default="--yes"
+            shift
+            ;;
+        --dry-run | -n | -t)
+            flg_DryRun=1
+            shift
+            ;;
+        -h | --help)
+            usage
+            exit 0
+            ;;
+        -*)
+            opt="${1#-}"
+            i=0
+            while ((i < ${#opt})); do
+                c="${opt:i:1}"
+                case "$c" in
+                    i)
+                        flg_Packages=1
+                        mark_component
+                        ;;
+                    r)
+                        flg_Configs=1
+                        flg_WmConfigs=1
+                        mark_component
+                        ;;
+                    s)
+                        flg_Services=1
+                        mark_component
+                        ;;
+                    h)
+                        flg_Shell=1
+                        mark_component
+                        ;;
+                    n | t) flg_DryRun=1 ;;
+                    d) export use_default="--yes" ;;
+                    *)
+                        print_log -err "Usage" "Unknown option: -$c"
+                        usage
+                        exit 1
+                        ;;
+                esac
+                ((i++)) || true
+            done
+            shift
+            ;;
+        *)
+            print_log -err "Usage" "Unexpected argument: $1"
+            usage
+            exit 1
+            ;;
     esac
 done
 
-# Export flags for use in other scripts
-export flg_DryRun flg_Install flg_Restore flg_Service flg_Shell
+interactive_picker() {
+    print_log -b "Picker" "Choose what to install (defaults shown in brackets)"
+    echo ""
 
-# Default to full installation if no options specified
-if [ $OPTIND -eq 1 ]; then
-    flg_Install=1
-    flg_Restore=1
-    flg_Service=1
-    flg_Shell=1
-    print_log -info "Default" "Running full ENVY installation"
+    if prompt_yes_no "Homebrew packages (Brewfile)" default_yes; then
+        flg_Packages=1
+        echo ""
+        print_log -b "Brew groups" "Select subbundles from the Brewfile"
+        if prompt_yes_no "  CLI / core tools / fonts" default_yes; then
+            brew_cli=1
+        else
+            brew_cli=0
+        fi
+        if prompt_yes_no "  GUI apps (casks + Mac App Store)" default_no; then
+            brew_apps=1
+        else
+            brew_apps=0
+        fi
+        if prompt_yes_no "  Window management (yabai, skhd, borders)" default_no; then
+            brew_wm=1
+        else
+            brew_wm=0
+        fi
+        if prompt_yes_no "  SketchyBar (incl. lua, luarocks, audio helpers)" default_no; then
+            brew_sbar=1
+        else
+            brew_sbar=0
+        fi
+        echo ""
+    fi
+
+    if prompt_yes_no "Shell environment (Oh My Zsh, Powerlevel10k, NVM)" default_yes; then
+        flg_Shell=1
+    fi
+    if prompt_yes_no "Base configs (shell, git, nvim, CLI tools via Dotbot)" default_yes; then
+        flg_Configs=1
+    fi
+    if [[ "${brew_wm}" -eq 1 || "${brew_sbar}" -eq 1 ]]; then
+        if prompt_yes_no "Window manager / bar configs (yabai/skhd/SketchyBar/borders)" default_yes; then
+            flg_WmConfigs=1
+        fi
+        if prompt_yes_no "Start related services" default_yes; then
+            flg_Services=1
+        fi
+    elif prompt_yes_no "Window manager / bar configs only (no brew WM/SketchyBar group)" default_no; then
+        flg_WmConfigs=1
+    fi
+    if prompt_yes_no "Apply macOS system defaults" default_no; then
+        flg_Macos=1
+    fi
+
+    flg_AnyComponent=1
+}
+
+if [[ "${flg_AnyComponent}" -eq 0 ]]; then
+    if is_tty; then
+        cat <<'EOF'
+
+  macOS Dotfiles Setup
+  --------------------
+
+EOF
+        interactive_picker
+    else
+        print_log -err "Non-interactive" "No component flags given. Pass --all or specific components (see --help)."
+        exit 1
+    fi
 fi
 
-if [ "${flg_DryRun}" -eq 1 ]; then
-    print_log -y "DRY RUN" "Test mode enabled - no actual changes will be made"
-    print_log -info "Actions" "The following would be executed:"
-    
-    if [ "${flg_Install}" -eq 1 ] || [ "${flg_Restore}" -eq 1 ]; then
-        print_log -info "Pre-Install" "Would run: ${scrDir}/install_pre.sh"
-        print_log -info "  →" "Check macOS compatibility"
-        print_log -info "  →" "Install Xcode Command Line Tools (if needed)"
-        print_log -info "  →" "Install Homebrew (if needed)"
-        print_log -info "  →" "Update Homebrew"
-    fi
-    
-    if [ "${flg_Install}" -eq 1 ]; then
-        print_log -info "Packages" "Would run: ${scrDir}/install_pkg.sh"
-        print_log -info "  →" "Install packages from Brewfile via: brew bundle install --file=${envyDir}/Brewfile"
-        print_log -info "  →" "Verify critical packages are available"
-        print_log -info "SketchyBar" "Would run: ${scrDir}/install_sketchybar.sh"
-        print_log -info "  →" "Download SketchyBar app font"
-        print_log -info "  →" "Install SbarLua"
-        print_log -info "  →" "Install lunajson Lua dependency"
-    fi
-    
-    if [ "${flg_Shell}" -eq 1 ]; then
-        print_log -info "Shell" "Would run: ${scrDir}/install_shell.sh"
-        print_log -info "  →" "Install Oh My Zsh"
-        print_log -info "  →" "Install Powerlevel10k theme"
-        print_log -info "  →" "Install Node Version Manager (NVM)"
-        print_log -info "  →" "Install fzf-zsh-plugin"
-        print_log -info "  →" "Set zsh as default shell (if needed)"
-    fi
-    
-    if [ "${flg_Restore}" -eq 1 ]; then
-        print_log -info "Restore" "Would run: ./install (Dotbot)"
-        print_log -info "  →" "Create symbolic links for all configurations"
-        print_log -info "  →" "Create required directories"
-        print_log -info "  →" "Set executable permissions for window manager configs"
-        print_log -info "  →" "Clean up broken symlinks"
-    fi
-    
-    if [ "${flg_Service}" -eq 1 ]; then
-        print_log -info "Services" "Would run: ${scrDir}/install_services.sh"
-        print_log -info "  →" "Configure macOS system preferences"
-        print_log -info "  →" "Start Homebrew services (yabai, skhd, sketchybar, borders)"
-        print_log -info "  →" "Enable login services"
-        print_log -info "  →" "Check SIP status"
-    fi
-    
-    print_log ""
-    print_log -g "Note" "To run the actual installation, remove the -n flag"
-    exit 0
+# Resolve brew group defaults when packages are selected but groups left unset
+if [[ "${flg_Packages}" -eq 1 ]]; then
+    [[ "${brew_cli}" -lt 0 ]] && brew_cli=1
+    [[ "${brew_apps}" -lt 0 ]] && brew_apps=1
+    [[ "${brew_wm}" -lt 0 ]] && brew_wm=1
+    [[ "${brew_sbar}" -lt 0 ]] && brew_sbar=1
+else
+    brew_cli=0
+    brew_apps=0
+    brew_wm=0
+    brew_sbar=0
 fi
 
-# Check if running on macOS
-if [[ "$(uname)" != "Darwin" ]]; then
-    print_log -err "Platform" "ENVY is designed for macOS only"
+if [[ "${flg_Packages}" -eq 1 && "${brew_cli}" -eq 0 && "${brew_apps}" -eq 0 && "${brew_wm}" -eq 0 && "${brew_sbar}" -eq 0 ]]; then
+    print_log -err "Brewfile" "Packages selected but all brew groups are off"
     exit 1
 fi
 
-#--------------------#
-# pre-install script #
-#--------------------#
-if [ ${flg_Install} -eq 1 ] || [ ${flg_Restore} -eq 1 ]; then
-    cat <<"EOF"
-                _         _       _ _
- ___ ___ ___   |_|___ ___| |_ ___| | |
-| . |  _| -_|  | |   |_ -|  _| .'| | |
-|  _|_| |___|  |_|_|_|___|_| |__,|_|_|
-|_|
+export flg_DryRun flg_Packages flg_Shell flg_Configs flg_WmConfigs flg_Services flg_Macos
+export DOTFILES_BREW_CLI="${brew_cli}"
+export DOTFILES_BREW_APPS="${brew_apps}"
+export DOTFILES_BREW_WM="${brew_wm}"
+export DOTFILES_BREW_SKETCHYBAR="${brew_sbar}"
 
-EOF
+need_pre=0
+if [[ "${flg_Packages}" -eq 1 || "${flg_Configs}" -eq 1 || "${flg_WmConfigs}" -eq 1 ]]; then
+    need_pre=1
+fi
 
-    print_log -info "Pre-Install" "Running pre-installation setup..."
+describe_plan() {
+    print_log -y "DRY RUN" " — no changes will be made"
+    [[ "${need_pre}" -eq 1 ]] && print_log -info "Pre" "Would run install_pre.sh (Xcode CLT, Homebrew)"
+    if [[ "${flg_Packages}" -eq 1 ]]; then
+        print_log -info "Packages" "Would brew bundle Brewfile (cli=${brew_cli} apps=${brew_apps} wm=${brew_wm} sketchybar=${brew_sbar})"
+        [[ "${brew_sbar}" -eq 1 ]] && print_log -info "SketchyBar" "Would run install_sketchybar.sh"
+    fi
+    [[ "${flg_Shell}" -eq 1 ]] && print_log -info "Shell" "Would run install_shell.sh"
+    [[ "${flg_Configs}" -eq 1 ]] && print_log -info "Configs" "Would run ./install -c install.conf.yaml"
+    [[ "${flg_WmConfigs}" -eq 1 ]] && print_log -info "WM configs" "Would run ./install -c install.wm.conf.yaml"
+    [[ "${flg_Macos}" -eq 1 ]] && print_log -info "macOS" "Would run scripts/macos.sh"
+    [[ "${flg_Services}" -eq 1 ]] && print_log -info "Services" "Would run install_services.sh"
+}
+
+if [[ "${flg_DryRun}" -eq 1 ]]; then
+    describe_plan
+    exit 0
+fi
+
+if [[ "$(uname)" != "Darwin" ]]; then
+    print_log -err "Platform" "This installer is for macOS only"
+    exit 1
+fi
+
+echo ""
+print_log -info "Plan" "Selected components:"
+[[ "${flg_Packages}" -eq 1 ]] && print_log -g " +" "Packages (cli=${brew_cli} apps=${brew_apps} wm=${brew_wm} sketchybar=${brew_sbar})"
+[[ "${flg_Shell}" -eq 1 ]] && print_log -g " +" "Shell environment"
+[[ "${flg_Configs}" -eq 1 ]] && print_log -g " +" "Base configs"
+[[ "${flg_WmConfigs}" -eq 1 ]] && print_log -g " +" "WM configs"
+[[ "${flg_Macos}" -eq 1 ]] && print_log -g " +" "macOS defaults"
+[[ "${flg_Services}" -eq 1 ]] && print_log -g " +" "Services"
+echo ""
+
+if [[ "${need_pre}" -eq 1 ]]; then
+    print_log -info "Pre-Install" "Running prerequisites..."
     "${scrDir}/install_pre.sh"
 fi
 
-#------------#
-# installing #
-#------------#
-if [ ${flg_Install} -eq 1 ]; then
-    cat <<"EOF"
-
- _         _       _ _ _
-|_|___ ___| |_ ___| | |_|___ ___
-| |   |_ -|  _| .'| | | |   | . |
-|_|_|_|___|_| |__,|_|_|_|_|_|_  |
-                            |___|
-
-EOF
-
-    print_log -info "Install" "Starting package installation..."
+if [[ "${flg_Packages}" -eq 1 ]]; then
+    print_log -info "Packages" "Installing from Brewfile..."
     "${scrDir}/install_pkg.sh"
-    
-    # SketchyBar specific setup
-    print_log -info "SketchyBar" "Setting up SketchyBar dependencies..."
-    "${scrDir}/install_sketchybar.sh"
+    if [[ "${brew_sbar}" -eq 1 ]]; then
+        print_log -info "SketchyBar" "Setting up SketchyBar dependencies..."
+        "${scrDir}/install_sketchybar.sh"
+    fi
 fi
 
-#-------------------#
-# shell environment #
-#-------------------#
-if [ ${flg_Shell} -eq 1 ]; then
-    cat <<"EOF"
-
-     _         _ _
- ___| |_ ___ | | |
-|_ -|   | -_|| | |
-|___|_|_|___||_|_|
-
-EOF
-
+if [[ "${flg_Shell}" -eq 1 ]]; then
     print_log -info "Shell" "Setting up shell environment..."
     "${scrDir}/install_shell.sh"
 fi
 
-#----------#
-# restoring #
-#----------#
-if [ ${flg_Restore} -eq 1 ]; then
-    cat <<"EOF"
-
-             _
- ___ ___ ___| |_ ___ ___ ___
-|  _| -_|_ -|  _| . |  _| -_|
-|_| |___|___|_| |___|_| |___|
-
-EOF
-
-    print_log -info "Restore" "Running Dotbot configuration restoration..."
-    cd "${envyDir}"
-    if [ "${flg_DryRun}" -eq 1 ]; then
-        print_log -info "Dotbot" "Would run: ./install"
-    else
-        ./install
-    fi
+if [[ "${flg_Configs}" -eq 1 ]]; then
+    print_log -info "Configs" "Linking base configs..."
+    (
+        cd "${repoDir}"
+        ./install -c install.conf.yaml
+    )
 fi
 
+if [[ "${flg_WmConfigs}" -eq 1 ]]; then
+    print_log -info "WM configs" "Linking window manager configs..."
+    (
+        cd "${repoDir}"
+        ./install -c install.wm.conf.yaml
+    )
+fi
 
-#----------#
-# services #
-#----------#
-if [ ${flg_Service} -eq 1 ]; then
-    cat <<"EOF"
+if [[ "${flg_Macos}" -eq 1 ]]; then
+    print_log -info "macOS" "Applying system defaults..."
+    bash "${scrDir}/macos.sh"
+fi
 
-                     _
- ___ ___ ___ _ _ _____|_|___ ___ ___
-|_ -| -_|  _| | | | | |  _| -_|_ -|
-|___|___|_|  \_/|_|_|_|___|___|___|
-
-EOF
-
-    print_log -info "Services" "Configuring services and system preferences..."
+if [[ "${flg_Services}" -eq 1 ]]; then
+    print_log -info "Services" "Configuring services..."
     "${scrDir}/install_services.sh"
 fi
 
-#------------#
-# completion #
-#------------#
-cat <<"EOF"
-
-     ___ ___ _____ ___ _    ___ _____ ___ 
-    |  _|   |     |  _| |  | __|_   _| __|
-    |  _| | | | | |  _| |__|   | | | |   |
-    |___|___| |_|_|___|____|___| |_| |___|
-
-EOF
-
-print_log -g "SUCCESS" "ENVY installation completed successfully!"
-print_log ""
-print_log -info "What's Next?" "Here are some next steps to get you started:"
-print_log ""
-print_log -b "Terminal:" "Restart your terminal or run 'source ~/.zshrc'"
-print_log -b "Prompt:" "Run 'p10k configure' to customize your Powerlevel10k prompt"
-print_log -b "Window Manager:" "Log out and log back in to activate yabai and skhd"
-print_log -b "Neovim:" "Run 'nvim' to start configuring your development environment"
-print_log ""
-
-# Display installed components
-print_log -info "Installed Components:" ""
-[ "${flg_Install}" -eq 1 ] && print_log -g "✓" "Homebrew packages and applications"
-[ "${flg_Shell}" -eq 1 ] && print_log -g "✓" "Oh My Zsh, Powerlevel10k, and NVM"
-[ "${flg_Restore}" -eq 1 ] && print_log -g "✓" "Configuration files and dotfiles"
-[ "${flg_Service}" -eq 1 ] && print_log -g "✓" "macOS preferences and services"
-
-print_log ""
-print_log -info "Documentation:" "Check the README.md for detailed configuration guides"
-print_log -info "Issues?" "Report problems at: https://github.com/raven-pierce/envy/issues"
-print_log ""
-print_log -c "Enjoy your new development environment!" "🚀" 
+print_log -g "SUCCESS" "Installation finished"
+print_log -info "Next" "Restart your terminal (or source ~/.zshrc)"
+[[ "${flg_Shell}" -eq 1 ]] && print_log -info "Next" "Run 'p10k configure' to customize your prompt"
+[[ "${flg_Services}" -eq 1 || "${brew_wm}" -eq 1 ]] && print_log -info "Next" "Log out/in so window management picks up Accessibility permissions"
+print_log -info "Docs" "See README.md for customization and key bindings"

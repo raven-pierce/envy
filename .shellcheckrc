@@ -1,0 +1,6 @@
+# roost shellcheck configuration
+shell=bash
+external-sources=true
+# Resolve `# shellcheck source=` directives relative to each script's own dir,
+# so sourcing scripts/global_fn.sh resolves and repoDir/cacheDir are seen.
+source-path=SCRIPTDIR

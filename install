@@ -1,15 +1,28 @@
 #!/usr/bin/env bash
+# Dotbot wrapper. Pass -c <config> to use a different config file.
 
-set -e
+set -euo pipefail
 
-CONFIG="install.conf.yaml"
+CONFIG="${DOTBOT_CONFIG:-install.conf.yaml}"
 DOTBOT_DIR="dotbot"
-
 DOTBOT_BIN="bin/dotbot"
 BASEDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Allow: ./install -c install.wm.conf.yaml
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -c | --config)
+            CONFIG="$2"
+            shift 2
+            ;;
+        *)
+            break
+            ;;
+    esac
+done
 
 cd "${BASEDIR}"
 git -C "${DOTBOT_DIR}" submodule sync --quiet --recursive
 git submodule update --init --recursive "${DOTBOT_DIR}"
 
-"${BASEDIR}/${DOTBOT_DIR}/${DOTBOT_BIN}" -d "${BASEDIR}" -c "${CONFIG}" "${@}"
+"${BASEDIR}/${DOTBOT_DIR}/${DOTBOT_BIN}" -d "${BASEDIR}" -c "${CONFIG}" "$@"

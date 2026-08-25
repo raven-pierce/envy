@@ -1,75 +1,56 @@
 #!/usr/bin/env bash
-#|---/ /+------------------------+---/ /|#
-#|--/ /-| Package install script |--/ /-|#
-#|-/ /--| ENVY Project           |-/ /--|#
-#|/ /---+------------------------+/ /---|#
+# Install from the root Brewfile (groups selected via DOTFILES_BREW_*).
 
-# Source global functions
-scrDir="$(dirname "$(realpath "$0")")"
+set -euo pipefail
+
+scrDir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=global_fn.sh
 source "${scrDir}/global_fn.sh"
 
 print_log -sec "install-pkg" -info "Starting" "Package installation via Homebrew Bundle"
 
-# Check if Homebrew is available
 if ! homebrew_installed; then
     print_log -sec "install-pkg" -err "Missing" "Homebrew not found! Run pre-install first."
     exit 1
 fi
 
-# Locate Brewfile
-brewfile="${envyDir}/Brewfile"
-if [[ ! -f "$brewfile" ]]; then
+brewfile="${repoDir}/Brewfile"
+if [[ ! -f "${brewfile}" ]]; then
     print_log -sec "install-pkg" -err "Missing" "Brewfile not found at ${brewfile}"
     exit 1
 fi
 
-print_log -sec "install-pkg" -info "Brewfile" "Found Brewfile at ${brewfile}"
+# Default: all groups on when invoked directly
+export DOTFILES_BREW_CLI="${DOTFILES_BREW_CLI:-1}"
+export DOTFILES_BREW_APPS="${DOTFILES_BREW_APPS:-1}"
+export DOTFILES_BREW_WM="${DOTFILES_BREW_WM:-1}"
+export DOTFILES_BREW_SKETCHYBAR="${DOTFILES_BREW_SKETCHYBAR:-1}"
 
-# Install packages from Brewfile using brew bundle
-print_log -sec "install-pkg" -info "Installing" "Installing packages from Brewfile..."
-print_log -sec "install-pkg" -y "Notice" "This may take a while depending on your internet connection"
+print_log -sec "install-pkg" -info "Groups" "cli=${DOTFILES_BREW_CLI} apps=${DOTFILES_BREW_APPS} wm=${DOTFILES_BREW_WM} sketchybar=${DOTFILES_BREW_SKETCHYBAR}"
 
-# Use brew bundle to install everything from the Brewfile
-if brew bundle install --file="$brewfile"; then
-    print_log -sec "install-pkg" -g "Success" "All packages installed successfully from Brewfile"
-else
-    exit_code=$?
-    print_log -sec "install-pkg" -warn "Partial" "Some packages may have failed to install (exit code: ${exit_code})"
-    print_log -sec "install-pkg" -info "Retry" "You can run 'brew bundle install --file=${brewfile}' manually to retry"
+if ! run_brewfile "${brewfile}"; then
+    print_log -sec "install-pkg" -warn "Partial" "Some packages may have failed — re-run: brew bundle install --file=${brewfile}"
 fi
 
-# Quick verification that critical packages are available
-print_log -sec "install-pkg" -info "Verification" "Verifying critical packages are available..."
+print_log -sec "install-pkg" -info "Verification" "Checking critical commands for selected groups..."
 
-critical_commands=(
-    "git"
-    "nvim"
-    "yabai"
-    "skhd"
-    "sketchybar"
-    "tmux"
-    "zsh"
-)
+critical=()
+[[ "${DOTFILES_BREW_CLI}" == "1" ]] && critical+=("git" "nvim" "zsh")
+[[ "${DOTFILES_BREW_WM}" == "1" ]] && critical+=("yabai" "skhd")
+[[ "${DOTFILES_BREW_SKETCHYBAR}" == "1" ]] && critical+=("sketchybar" "lua" "luarocks")
 
-missing_commands=()
-
-for cmd in "${critical_commands[@]}"; do
-    if command_exists "$cmd"; then
-        print_log -sec "install-pkg" -g "✓" "${cmd} available"
+missing=()
+for cmd in "${critical[@]}"; do
+    if command_exists "${cmd}"; then
+        print_log -sec "install-pkg" -g "ok" "${cmd}"
     else
-        print_log -sec "install-pkg" -r "✗" "${cmd} not found in PATH"
-        missing_commands+=("$cmd")
+        print_log -sec "install-pkg" -r "missing" "${cmd}"
+        missing+=("${cmd}")
     fi
 done
 
-if [[ ${#missing_commands[@]} -eq 0 ]]; then
-    print_log -sec "install-pkg" -g "Complete" "All critical packages are available"
-else
-    print_log -sec "install-pkg" -warn "Missing" "Some critical packages are not in PATH:"
-    for cmd in "${missing_commands[@]}"; do
-        print_log -sec "install-pkg" -r "Missing" "$cmd"
-    done
-    print_log -sec "install-pkg" -info "Note" "They may have been installed but require a shell restart"
+if [[ ${#missing[@]} -gt 0 ]]; then
+    print_log -sec "install-pkg" -warn "PATH" "Some tools are missing from PATH; a new shell may be required"
 fi
 
-print_log -sec "install-pkg" -g "Complete" "Package installation completed" 
+print_log -sec "install-pkg" -g "Complete" "Package installation completed"

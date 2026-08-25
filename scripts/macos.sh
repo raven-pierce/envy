@@ -5,11 +5,15 @@
 set -euo pipefail
 
 # Close any open System Settings panes so they do not override changes
-osascript -e 'tell application "System Settings" to quit' 2>/dev/null || \
+osascript -e 'tell application "System Settings" to quit' 2>/dev/null ||
     osascript -e 'tell application "System Preferences" to quit' 2>/dev/null || true
 
 sudo -v
-while true; do sudo -n true; sleep 60; kill -0 "$$" || exit; done 2>/dev/null &
+while true; do
+    sudo -n true
+    sleep 60
+    kill -0 "$$" || exit
+done 2>/dev/null &
 
 ###############################################################################
 # General UI/UX                                                               #
@@ -180,9 +184,9 @@ sudo chflags nohidden /Volumes
 # Expand the following File Info panes:
 # “General”, “Open with”, and “Sharing & Permissions”
 defaults write com.apple.finder FXInfoPanesExpanded -dict \
-	General -bool true \
-	OpenWith -bool true \
-	Privileges -bool true
+    General -bool true \
+    OpenWith -bool true \
+    Privileges -bool true
 
 ###############################################################################
 # Dock, Dashboard, and hot corners                                            #
@@ -317,13 +321,13 @@ defaults write com.google.Chrome PMPrintingExpandedStateForPrint2 -bool true
 ###############################################################################
 
 for app in "Activity Monitor" \
-	"cfprefsd" \
-	"Dock" \
-	"Finder" \
-	"Google Chrome" \
-	"Messages" \
-	"Photos" \
-	"SystemUIServer"; do
-	killall "${app}" &> /dev/null || true
+    "cfprefsd" \
+    "Dock" \
+    "Finder" \
+    "Google Chrome" \
+    "Messages" \
+    "Photos" \
+    "SystemUIServer"; do
+    killall "${app}" &>/dev/null || true
 done
 echo "Done. Note that some of these changes require a logout/restart to take effect."
