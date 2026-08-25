@@ -1,11 +1,13 @@
-# macOS Dotfiles
+# roost
 
-Personal macOS development environment: Homebrew packages, shell setup, Dotbot-managed configs, and optional window management (yabai / skhd / SketchyBar).
+A macOS development environment you can make your own: Homebrew packages, shell setup, Dotbot-managed configs, and optional window management (yabai / skhd / SketchyBar).
 
 ## Features
 
 - Component-based installer (pick what you want)
+- Rich multi-select picker via [`gum`](https://github.com/charmbracelet/gum) where available, with a plain-prompt fallback
 - Interactive picker on a TTY; non-interactive runs require explicit flags
+- First run prompts for your git identity (name, email, optional GPG signing key) and writes it into `configs/git/gitconfig` before linking
 - One Brewfile with selectable groups (CLI, apps, window management)
 - Dotbot for declarative symlinks
 - Optional macOS defaults (hostname is never forced)
@@ -15,19 +17,19 @@ Personal macOS development environment: Homebrew packages, shell setup, Dotbot-m
 ### Bootstrap
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/raven-pierce/dotfiles/main/bootstrap.sh | bash
+curl -sSL https://raw.githubusercontent.com/raven-pierce/roost/main/bootstrap.sh | bash
 ```
 
 Override clone location or repo:
 
 ```bash
-DOTFILES_DIR=~/.dotfiles DOTFILES_REPO=https://github.com/raven-pierce/dotfiles.git bash <(curl -sSL https://raw.githubusercontent.com/raven-pierce/dotfiles/main/bootstrap.sh)
+DOTFILES_DIR=~/.dotfiles DOTFILES_REPO=https://github.com/raven-pierce/roost.git bash <(curl -sSL https://raw.githubusercontent.com/raven-pierce/roost/main/bootstrap.sh)
 ```
 
 ### Manual
 
 ```bash
-git clone https://github.com/raven-pierce/dotfiles.git ~/.dotfiles
+git clone https://github.com/raven-pierce/roost.git ~/.dotfiles
 cd ~/.dotfiles
 git submodule update --init --recursive
 ./scripts/install.sh
@@ -45,6 +47,7 @@ On a terminal with no flags, you get an interactive picker. Away from a TTY (CI,
 ./scripts/install.sh --all --dry-run
 ./scripts/install.sh --macos                # system defaults only
 COMPUTER_NAME="MyMac" ./scripts/install.sh --macos
+./scripts/install.sh --reset-yabai          # reinstall yabai SA after an upgrade
 ```
 
 | Flag | What it does |
@@ -60,6 +63,7 @@ COMPUTER_NAME="MyMac" ./scripts/install.sh --macos
 | `--services` | Start WM services |
 | `--macos` | Apply `scripts/macos.sh` defaults |
 | `--all` | Everything above (all brew groups on) |
+| `--reset-yabai` | Reinstall the yabai scripting addition (after a yabai upgrade) |
 | `--yes` / `-y` | Accept prompt defaults where used |
 | `--dry-run` / `-n` | Print the plan only |
 
@@ -96,8 +100,19 @@ The Brewfile is normal Homebrew Ruby. Groups are gated with `DOTFILES_BREW_CLI`,
 3. Log out/in after enabling window management; grant Accessibility if macOS asks
 4. Optional full yabai: disable SIP only if you accept the security tradeoff
 
+### After a yabai upgrade
+
+yabai's scripting addition must be reinstalled whenever yabai updates. Run:
+
+```bash
+./scripts/install.sh --reset-yabai
+```
+
+This reinstalls the scripting addition and refreshes the hash-pinned sudoers entry (you will be prompted for your password).
+
 ## Customize
 
+- Git identity: the repo ships `configs/git/gitconfig` with no `[user]` section. On first `--configs` run you are prompted for name, email, and whether to enable GPG signing (choosing a key from your keyring), and the values are written straight into `configs/git/gitconfig` before Dotbot links it. Since you fork first, personalizing the tracked file is expected; run `git update-index --skip-worktree configs/git/gitconfig` if you want to keep your details out of future commits.
 - Packages: edit `Brewfile` (keep the `if cli` / `if apps` / `if wm` / `if sbar` markers), then re-run `--packages` with the group flags you want
 - Configs: edit under `configs/`, update the Dotbot YAML, run `./install` or `./install -c install.wm.conf.yaml`
 - Hostname during `--macos`: `COMPUTER_NAME=MyMac ./scripts/macos.sh`

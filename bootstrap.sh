@@ -13,15 +13,15 @@ print_color() {
     printf '%b%s%b\n' "$1" "$2" "${NC}"
 }
 
-REPO_URL="${DOTFILES_REPO:-https://github.com/raven-pierce/dotfiles.git}"
+REPO_URL="${DOTFILES_REPO:-https://github.com/raven-pierce/roost.git}"
 DEFAULT_DIR="${DOTFILES_DIR:-$HOME/.dotfiles}"
 
 print_banner() {
     cat <<'EOF'
 
-  macOS Dotfiles
-  --------------
-  Clone + interactive component installer
+  roost
+  -----
+  Clone + interactive component installer for macOS
 
 EOF
 }
