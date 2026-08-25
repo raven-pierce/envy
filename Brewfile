@@ -59,7 +59,6 @@ brew "zoxide" if cli
 
 # File and Data Tools
 brew "jq" if cli
-brew "stow" if cli
 brew "tmux" if cli
 brew "trash" if cli
 brew "tree" if cli
