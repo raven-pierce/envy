@@ -97,9 +97,9 @@ cask "1password-cli" if cli
 
 brew "borders" if wm
 brew "mas" if cli
-brew "skhd" if wm # required:wm-configs,services
-brew "sketchybar" if sbar # required:wm-configs,services
-brew "yabai" if wm # required:wm-configs,services
+brew "skhd" if wm
+brew "sketchybar" if sbar
+brew "yabai" if wm
 cask "linearmouse" if wm
 cask "logitech-g-hub" if apps
 

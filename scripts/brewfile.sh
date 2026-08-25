@@ -2,16 +2,12 @@
 # Brewfile parsing + filtering for interactive per-package selection.
 #
 # Packages in the Brewfile are guarded by a single group (`... if cli|apps|wm|sbar`).
-# A core package may be tagged with a trailing marker naming the components it
-# backs, e.g.  brew "yabai" if wm # required:wm-configs,services
-#
 # These helpers are pure (awk over a Brewfile) so they can be unit-tested.
 
 # brewfile_candidates BREWFILE GROUP
-#   Emit a TSV row "type<TAB>name<TAB>spec<TAB>required" for every selectable
-#   brew/cask/mas package whose `if` group equals GROUP. `spec` is the verbatim
-#   argument list (so mas rows keep their `, id: N`); `required` is the CSV from
-#   the `# required:` marker (empty when absent).
+#   Emit a TSV row "type<TAB>name<TAB>spec" for every selectable brew/cask/mas
+#   package whose `if` group equals GROUP. `spec` is the verbatim argument list
+#   (so mas rows keep their `, id: N`).
 brewfile_candidates() {
     local file=$1 group=$2
     awk -v want="${group}" '
@@ -19,9 +15,7 @@ brewfile_candidates() {
     /^(brew|cask|mas) / {
         line = $0
         hash = index(line, "#")
-        code = (hash > 0) ? substr(line, 1, hash - 1) : line
-        comment = (hash > 0) ? substr(line, hash) : ""
-        code = trim(code)
+        code = trim((hash > 0) ? substr(line, 1, hash - 1) : line)
 
         type = code; sub(/ .*/, "", type)
         rest = trim(substr(code, length(type) + 1))
@@ -33,12 +27,9 @@ brewfile_candidates() {
         name = ""
         if (match(spec, /"[^"]*"/)) name = substr(spec, RSTART + 1, RLENGTH - 2)
 
-        req = ""
-        if (match(comment, /required:[^ ]+/)) req = substr(comment, RSTART + 9, RLENGTH - 9)
-
         n = split(cond, toks, /\|\|/)
         for (i = 1; i <= n; i++) if (trim(toks[i]) == want) {
-            printf "%s\t%s\t%s\t%s\n", type, name, spec, req
+            printf "%s\t%s\t%s\n", type, name, spec
             next
         }
     }

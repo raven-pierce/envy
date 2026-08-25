@@ -1,0 +1,17 @@
+- defaults:
+    link:
+      relink: true
+      create: true
+    shell:
+      stdout: true
+      stderr: true
+
+- link:
+    ~/.config/sketchybar: configs/sketchybar
+
+- shell:
+    - description: "Set executable permissions for the SketchyBar config"
+      command: |
+        [ -f ~/.config/sketchybar/sketchybarrc ] && chmod +x ~/.config/sketchybar/sketchybarrc
+      stdout: true
+      stderr: true

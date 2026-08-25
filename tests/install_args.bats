@@ -10,12 +10,28 @@ setup() {
     [ "$flg_Shell" -eq 1 ]
     [ "$flg_Configs" -eq 1 ]
     [ "$flg_WmConfigs" -eq 1 ]
-    [ "$flg_Services" -eq 1 ]
+    [ "$flg_WmServices" -eq 1 ]
+    [ "$flg_SbarConfigs" -eq 1 ]
+    [ "$flg_SbarService" -eq 1 ]
     [ "$flg_Macos" -eq 1 ]
     [ "$brew_cli" -eq 1 ]
     [ "$brew_apps" -eq 1 ]
     [ "$brew_wm" -eq 1 ]
     [ "$brew_sbar" -eq 1 ]
+}
+
+@test "--services enables both WM and SketchyBar services" {
+    reset_flags
+    parse_args --services
+    [ "$flg_WmServices" -eq 1 ]
+    [ "$flg_SbarService" -eq 1 ]
+}
+
+@test "--sketchybar-configs is independent of --wm-configs" {
+    reset_flags
+    parse_args --sketchybar-configs
+    [ "$flg_SbarConfigs" -eq 1 ]
+    [ "$flg_WmConfigs" -eq 0 ]
 }
 
 @test "--no-brew-apps turns the apps group off" {
@@ -53,6 +69,18 @@ setup() {
     [ "$brew_sbar" -eq 1 ]
 }
 
+@test "an explicit brew group implies packages and enables only that group" {
+    reset_flags
+    parse_args --brew-wm
+    [ "$flg_AnyComponent" -eq 1 ]
+    resolve_brew_groups
+    [ "$flg_Packages" -eq 1 ]
+    [ "$brew_wm" -eq 1 ]
+    [ "$brew_cli" -eq 0 ]
+    [ "$brew_apps" -eq 0 ]
+    [ "$brew_sbar" -eq 0 ]
+}
+
 @test "packages not selected forces all groups off" {
     reset_flags
     resolve_brew_groups
@@ -70,22 +98,56 @@ setup() {
     [ "$status" -ne 0 ]
 }
 
-@test "gum_picker maps selections to component and brew-group flags" {
+@test "gum_picker maps feature selections and gated follow-ups to flags" {
+    reset_flags
+    # Stub the feature multi-select; skip per-package pruning and answer the
+    # WM follow-ups "yes".
+    gum() {
+        case "$*" in
+            *"What should roost set up"*) printf 'CLI tools & fonts\nWindow management (yabai + skhd + borders)\n' ;;
+            *) printf '' ;;
+        esac
+    }
+    select_packages() {
+        wm_core_kept=1
+        sbar_core_kept=1
+    }
+    prompt_yes_no() { return 0; }
+
+    gum_picker
+
+    [ "$flg_Packages" -eq 1 ]
+    [ "$brew_cli" -eq 1 ]
+    [ "$brew_wm" -eq 1 ]
+    [ "$brew_apps" -eq 0 ]
+    [ "$brew_sbar" -eq 0 ]
+    [ "$flg_Shell" -eq 0 ]
+    # WM chosen, core kept, follow-ups answered yes
+    [ "$flg_WmConfigs" -eq 1 ]
+    [ "$flg_WmServices" -eq 1 ]
+    [ "$flg_SbarConfigs" -eq 0 ]
+}
+
+@test "gum_picker skips WM follow-ups when yabai is pruned away" {
     reset_flags
     gum() {
         case "$*" in
-            *"Select components"*) printf 'Packages (Homebrew Brewfile)\nBase configs (Dotbot)\n' ;;
-            *"Homebrew groups"*) printf 'CLI / core tools / fonts\nSketchyBar (lua, luarocks, audio helpers)\n' ;;
+            *"What should roost set up"*) printf 'Window management (yabai + skhd + borders)\n' ;;
+            *) printf '' ;;
         esac
     }
+    # Simulate the core package being dropped during pruning.
+    select_packages() {
+        wm_core_kept=0
+        sbar_core_kept=1
+    }
+    prompt_yes_no() { return 0; }
+
     gum_picker
-    [ "$flg_Packages" -eq 1 ]
-    [ "$flg_Configs" -eq 1 ]
-    [ "$flg_Shell" -eq 0 ]
-    [ "$brew_cli" -eq 1 ]
-    [ "$brew_apps" -eq 0 ]
-    [ "$brew_wm" -eq 0 ]
-    [ "$brew_sbar" -eq 1 ]
+
+    [ "$brew_wm" -eq 1 ]
+    [ "$flg_WmConfigs" -eq 0 ]
+    [ "$flg_WmServices" -eq 0 ]
 }
 
 @test "no components + non-interactive exits non-zero (no prompts)" {

@@ -14,13 +14,16 @@ usage() {
 Usage: $0 [options]
 
 Components (select at least one, or use interactive mode on a TTY):
-  --packages      Install from Brewfile (see brew group flags below)
-  --shell         Set up Oh My Zsh, Powerlevel10k, NVM
-  --configs       Link base dotfiles via Dotbot
-  --wm-configs    Link window manager configs via Dotbot
-  --services      Start window management / SketchyBar services
-  --macos         Apply macOS defaults (scripts/macos.sh)
-  --all           Enable every component above (all brew groups)
+  --packages           Install from the Brewfile (see brew groups below)
+  --shell              Set up Oh My Zsh, Powerlevel10k, nvm
+  --configs            Link base dotfiles (git / shell / editors) via Dotbot
+  --wm-configs         Link window-manager configs (yabai / skhd / borders)
+  --sketchybar-configs Link the SketchyBar config
+  --wm-services        Start window-manager services (yabai / skhd / borders)
+  --sketchybar-service Start the SketchyBar service
+  --services           Start both WM and SketchyBar services
+  --macos              Apply macOS defaults (scripts/macos.sh)
+  --all                Enable every component above (all brew groups)
 
 Brew groups (only apply with --packages / --all / interactive packages):
   --brew-cli / --no-brew-cli               Core CLI, fonts (default: on)
@@ -37,13 +40,14 @@ Behavior:
   -h, --help      Show this help
 
 With no component flags:
-  - Interactive TTY  → guided component picker (including brew subbundles)
+  - Interactive TTY  → guided, feature-first picker (with per-package pruning)
   - Non-interactive  → error (pass flags or --all)
 
 Examples:
   $0                                  # interactive picker
   $0 --packages --shell --configs
   $0 --packages --no-brew-apps --brew-sketchybar --no-brew-wm
+  $0 --brew-wm --wm-configs --wm-services
   $0 --all --dry-run
   $0 --reset-yabai
 EOF
@@ -53,7 +57,9 @@ flg_Packages=0
 flg_Shell=0
 flg_Configs=0
 flg_WmConfigs=0
-flg_Services=0
+flg_WmServices=0
+flg_SbarConfigs=0
+flg_SbarService=0
 flg_Macos=0
 flg_DryRun=0
 flg_AnyComponent=0
@@ -65,6 +71,11 @@ brew_apps=-1
 brew_wm=-1
 brew_sbar=-1
 
+# Whether each feature's core package survived per-package pruning (gates the
+# config/service follow-ups in the interactive picker).
+wm_core_kept=1
+sbar_core_kept=1
+
 mark_component() {
     flg_AnyComponent=1
 }
@@ -74,7 +85,9 @@ reset_flags() {
     flg_Shell=0
     flg_Configs=0
     flg_WmConfigs=0
-    flg_Services=0
+    flg_WmServices=0
+    flg_SbarConfigs=0
+    flg_SbarService=0
     flg_Macos=0
     flg_DryRun=0
     flg_AnyComponent=0
@@ -83,6 +96,8 @@ reset_flags() {
     brew_apps=-1
     brew_wm=-1
     brew_sbar=-1
+    wm_core_kept=1
+    sbar_core_kept=1
     unset use_default 2>/dev/null || true
 }
 
@@ -109,8 +124,24 @@ parse_args() {
                 mark_component
                 shift
                 ;;
+            --sketchybar-configs | --sbar-configs)
+                flg_SbarConfigs=1
+                mark_component
+                shift
+                ;;
+            --wm-services)
+                flg_WmServices=1
+                mark_component
+                shift
+                ;;
+            --sketchybar-service | --sbar-service)
+                flg_SbarService=1
+                mark_component
+                shift
+                ;;
             --services)
-                flg_Services=1
+                flg_WmServices=1
+                flg_SbarService=1
                 mark_component
                 shift
                 ;;
@@ -125,6 +156,7 @@ parse_args() {
                 ;;
             --brew-cli)
                 brew_cli=1
+                mark_component
                 shift
                 ;;
             --no-brew-cli)
@@ -133,6 +165,7 @@ parse_args() {
                 ;;
             --brew-apps)
                 brew_apps=1
+                mark_component
                 shift
                 ;;
             --no-brew-apps)
@@ -141,6 +174,7 @@ parse_args() {
                 ;;
             --brew-wm)
                 brew_wm=1
+                mark_component
                 shift
                 ;;
             --no-brew-wm)
@@ -149,6 +183,7 @@ parse_args() {
                 ;;
             --brew-sketchybar | --brew-sbar)
                 brew_sbar=1
+                mark_component
                 shift
                 ;;
             --no-brew-sketchybar | --no-brew-sbar)
@@ -160,7 +195,9 @@ parse_args() {
                 flg_Shell=1
                 flg_Configs=1
                 flg_WmConfigs=1
-                flg_Services=1
+                flg_WmServices=1
+                flg_SbarConfigs=1
+                flg_SbarService=1
                 flg_Macos=1
                 brew_cli=1
                 brew_apps=1
@@ -194,10 +231,12 @@ parse_args() {
                         r)
                             flg_Configs=1
                             flg_WmConfigs=1
+                            flg_SbarConfigs=1
                             mark_component
                             ;;
                         s)
-                            flg_Services=1
+                            flg_WmServices=1
+                            flg_SbarService=1
                             mark_component
                             ;;
                         h)
@@ -226,107 +265,122 @@ parse_args() {
 }
 
 picker_basic() {
-    print_log -b "Picker" "Choose what to install (defaults shown in brackets)"
+    # Plain-prompt fallback (no gum). Same feature-first order as gum_picker,
+    # minus per-package pruning (that needs gum's multi-select).
+    print_log -b "roost" "Choose what to set up (defaults in brackets)"
     echo ""
 
-    if prompt_yes_no "Homebrew packages (Brewfile)" default_yes; then
+    if prompt_yes_no "CLI tools & fonts" default_yes; then
+        brew_cli=1
         flg_Packages=1
-        echo ""
-        print_log -b "Brew groups" "Select subbundles from the Brewfile"
-        if prompt_yes_no "  CLI / core tools / fonts" default_yes; then
-            brew_cli=1
-        else
-            brew_cli=0
-        fi
-        if prompt_yes_no "  GUI apps (casks + Mac App Store)" default_no; then
-            brew_apps=1
-        else
-            brew_apps=0
-        fi
-        if prompt_yes_no "  Window management (yabai, skhd, borders)" default_no; then
-            brew_wm=1
-        else
-            brew_wm=0
-        fi
-        if prompt_yes_no "  SketchyBar (incl. lua, luarocks, audio helpers)" default_no; then
-            brew_sbar=1
-        else
-            brew_sbar=0
-        fi
-        echo ""
     fi
+    if prompt_yes_no "GUI apps" default_no; then
+        brew_apps=1
+        flg_Packages=1
+    fi
+    prompt_yes_no "Shell environment (Oh My Zsh / Powerlevel10k / nvm)" default_yes && flg_Shell=1
+    prompt_yes_no "Base dotfiles (git / shell / editors)" default_yes && flg_Configs=1
 
-    if prompt_yes_no "Shell environment (Oh My Zsh, Powerlevel10k, NVM)" default_yes; then
-        flg_Shell=1
+    if prompt_yes_no "Window management (yabai / skhd / borders)" default_no; then
+        brew_wm=1
+        flg_Packages=1
+        prompt_yes_no "  Link window-manager configs?" default_yes && flg_WmConfigs=1
+        prompt_yes_no "  Start the window-manager services now?" default_yes && flg_WmServices=1
     fi
-    if prompt_yes_no "Base configs (shell, git, nvim, CLI tools via Dotbot)" default_yes; then
-        flg_Configs=1
+    if prompt_yes_no "SketchyBar (status bar)" default_no; then
+        brew_sbar=1
+        flg_Packages=1
+        prompt_yes_no "  Link the SketchyBar config?" default_yes && flg_SbarConfigs=1
+        prompt_yes_no "  Start the SketchyBar service now?" default_yes && flg_SbarService=1
     fi
-    if [[ "${brew_wm}" -eq 1 || "${brew_sbar}" -eq 1 ]]; then
-        if prompt_yes_no "Window manager / bar configs (yabai/skhd/SketchyBar/borders)" default_yes; then
-            flg_WmConfigs=1
-        fi
-        if prompt_yes_no "Start related services" default_yes; then
-            flg_Services=1
-        fi
-    elif prompt_yes_no "Window manager / bar configs only (no brew WM/SketchyBar group)" default_no; then
-        flg_WmConfigs=1
-    fi
-    if prompt_yes_no "Apply macOS system defaults" default_no; then
-        flg_Macos=1
-    fi
+    prompt_yes_no "Apply macOS system defaults" default_no && flg_Macos=1
+
+    # Any brew group not chosen is explicitly off.
+    [[ "${brew_cli}" -lt 0 ]] && brew_cli=0
+    [[ "${brew_apps}" -lt 0 ]] && brew_apps=0
+    [[ "${brew_wm}" -lt 0 ]] && brew_wm=0
+    [[ "${brew_sbar}" -lt 0 ]] && brew_sbar=0
     return 0
 }
 
 gum_picker() {
-    local -a comps=(
-        "Packages (Homebrew Brewfile)"
-        "Shell (Oh My Zsh / Powerlevel10k / NVM)"
-        "Base configs (Dotbot)"
-        "WM configs (yabai/skhd/SketchyBar/borders)"
-        "Start services"
-        "macOS defaults"
+    # Feature-first: one coherent choice per feature. Configs/services are
+    # dependency-gated follow-ups owned by their feature, not separate top-level
+    # questions. gum --selected is comma-separated, so labels carry no commas.
+    local -a features=(
+        "CLI tools & fonts"
+        "GUI apps"
+        "Shell environment (Oh My Zsh / Powerlevel10k / nvm)"
+        "Base dotfiles (git / shell / editors)"
+        "Window management (yabai + skhd + borders)"
+        "SketchyBar (status bar)"
+        "macOS system defaults"
     )
     local chosen
-    # NOTE: gum --selected is comma-separated, so option labels must not
-    # contain commas (use " / " instead) or pre-selection breaks.
-    chosen="$(printf '%s\n' "${comps[@]}" | gum choose --no-limit \
-        --header="Select components — space toggles, enter confirms" \
-        --selected="Packages (Homebrew Brewfile),Shell (Oh My Zsh / Powerlevel10k / NVM),Base configs (Dotbot)")" || true
+    chosen="$(printf '%s\n' "${features[@]}" | gum choose --no-limit \
+        --header="What should roost set up? — space toggles, enter confirms" \
+        --selected="CLI tools & fonts,Shell environment (Oh My Zsh / Powerlevel10k / nvm),Base dotfiles (git / shell / editors)")" || chosen=""
 
-    grep -q "^Packages" <<<"${chosen}" && flg_Packages=1
-    grep -q "^Shell" <<<"${chosen}" && flg_Shell=1
-    grep -q "^Base configs" <<<"${chosen}" && flg_Configs=1
-    grep -q "^WM configs" <<<"${chosen}" && flg_WmConfigs=1
-    grep -q "^Start services" <<<"${chosen}" && flg_Services=1
-    grep -q "^macOS defaults" <<<"${chosen}" && flg_Macos=1
+    grep -q "^CLI tools" <<<"${chosen}" && {
+        brew_cli=1
+        flg_Packages=1
+    }
+    grep -q "^GUI apps" <<<"${chosen}" && {
+        brew_apps=1
+        flg_Packages=1
+    }
+    grep -q "^Shell environment" <<<"${chosen}" && flg_Shell=1
+    grep -q "^Base dotfiles" <<<"${chosen}" && flg_Configs=1
+    grep -q "^Window management" <<<"${chosen}" && {
+        brew_wm=1
+        flg_Packages=1
+    }
+    grep -q "^SketchyBar" <<<"${chosen}" && {
+        brew_sbar=1
+        flg_Packages=1
+    }
+    grep -q "^macOS system defaults" <<<"${chosen}" && flg_Macos=1
 
+    # A brew group not chosen above is explicitly off.
+    [[ "${brew_cli}" -lt 0 ]] && brew_cli=0
+    [[ "${brew_apps}" -lt 0 ]] && brew_apps=0
+    [[ "${brew_wm}" -lt 0 ]] && brew_wm=0
+    [[ "${brew_sbar}" -lt 0 ]] && brew_sbar=0
+
+    # Prune individual packages for the chosen package features.
     if [[ "${flg_Packages}" -eq 1 ]]; then
-        local -a groups=(
-            "CLI / core tools / fonts"
-            "GUI apps (casks + Mac App Store)"
-            "Window management (yabai / skhd / borders)"
-            "SketchyBar (lua / luarocks / audio)"
-        )
-        local gchosen
-        gchosen="$(printf '%s\n' "${groups[@]}" | gum choose --no-limit \
-            --header="Homebrew groups" \
-            --selected="CLI / core tools / fonts")" || true
-
-        grep -q "^CLI" <<<"${gchosen}" && brew_cli=1 || brew_cli=0
-        grep -q "^GUI apps" <<<"${gchosen}" && brew_apps=1 || brew_apps=0
-        grep -q "^Window management" <<<"${gchosen}" && brew_wm=1 || brew_wm=0
-        grep -q "^SketchyBar" <<<"${gchosen}" && brew_sbar=1 || brew_sbar=0
-
         select_packages
+    fi
+
+    # Dependency-gated follow-ups. yabai and sketchybar are each a feature's core;
+    # if pruning dropped the core, its configs/services are moot, so we skip them.
+    if [[ "${brew_wm}" -eq 1 ]]; then
+        if [[ "${wm_core_kept}" -eq 1 ]]; then
+            prompt_yes_no "Link window-manager configs (yabai / skhd / borders)?" default_yes && flg_WmConfigs=1
+            prompt_yes_no "Start the window-manager services now?" default_yes && flg_WmServices=1
+        else
+            print_log -y "Skip" "yabai deselected — skipping window-manager configs and services"
+        fi
+    fi
+    if [[ "${brew_sbar}" -eq 1 ]]; then
+        if [[ "${sbar_core_kept}" -eq 1 ]]; then
+            prompt_yes_no "Link the SketchyBar config?" default_yes && flg_SbarConfigs=1
+            prompt_yes_no "Start the SketchyBar service now?" default_yes && flg_SbarService=1
+        else
+            print_log -y "Skip" "sketchybar deselected — skipping its config and service"
+        fi
     fi
     return 0
 }
 
 select_packages() {
     # Interactive per-package pruning (gum only). Writes a filtered Brewfile to a
-    # temp path, exports DOTFILES_BREWFILE, and drops any component coupled to a
-    # deselected "required" package.
+    # temp path and exports DOTFILES_BREWFILE. Records whether each feature's core
+    # package (yabai / sketchybar) survived pruning, so gum_picker can gate the
+    # config/service follow-ups on it.
+    wm_core_kept=1
+    sbar_core_kept=1
+
     local orig="${repoDir}/Brewfile"
     [[ -f "${orig}" ]] || return 0
 
@@ -346,27 +400,32 @@ select_packages() {
         _select_group_packages "${group}" "${orig}" "${keepfile}"
     done
 
+    if [[ "${brew_wm}" -eq 1 ]] && ! grep -qx "brew:yabai" "${keepfile}"; then
+        wm_core_kept=0
+    fi
+    if [[ "${brew_sbar}" -eq 1 ]] && ! grep -qx "brew:sketchybar" "${keepfile}"; then
+        sbar_core_kept=0
+    fi
+
     brewfile_generate "${orig}" "${brew_cli}" "${brew_apps}" "${brew_wm}" "${brew_sbar}" \
         "${keepfile}" >"${tmp}"
     rm -f "${keepfile}"
     export DOTFILES_BREWFILE="${tmp}"
-    print_log -info "Packages" "Using a custom package selection"
+    print_log -info "Packages" "Using your custom package selection"
 }
 
 _select_group_packages() {
     local group=$1 orig=$2 keepfile=$3
     local -a labels=()
-    local -A key_of=() name_of=() req_of=()
-    local type name spec req label
+    local -A key_of=()
+    local type name spec label
 
     # spec is unused here (only the generator needs it) but is part of the shared TSV.
     # shellcheck disable=SC2034
-    while IFS=$'\t' read -r type name spec req; do
+    while IFS=$'\t' read -r type name spec; do
         label="${name}  [${type}]"
         labels+=("${label}")
         key_of["${label}"]="${type}:${name}"
-        name_of["${label}"]="${name}"
-        [[ -n "${req}" ]] && req_of["${label}"]="${req}"
     done < <(brewfile_candidates "${orig}" "${group}")
 
     [[ ${#labels[@]} -eq 0 ]] && return 0
@@ -395,34 +454,7 @@ _select_group_packages() {
     for label in "${labels[@]}"; do
         if grep -Fxq "${label}" <<<"${chosen}"; then
             printf '%s\n' "${key_of[${label}]}" >>"${keepfile}"
-        elif [[ -n "${req_of[${label}]:-}" ]]; then
-            if prompt_yes_no "'${name_of[${label}]}' is required by: ${req_of[${label}]}. Deselect it and drop those component(s) too?" default_no; then
-                _drop_components "${req_of[${label}]}"
-            else
-                printf '%s\n' "${key_of[${label}]}" >>"${keepfile}"
-            fi
         fi
-    done
-}
-
-_drop_components() {
-    local csv=$1 comp
-    local -a comps=()
-    IFS=',' read -ra comps <<<"${csv}"
-    for comp in "${comps[@]}"; do
-        case "${comp}" in
-            wm-configs)
-                flg_WmConfigs=0
-                print_log -y "Dropped" "WM configs (a required package was deselected)"
-                ;;
-            services)
-                flg_Services=0
-                print_log -y "Dropped" "Services (a required package was deselected)"
-                ;;
-            configs) flg_Configs=0 ;;
-            shell) flg_Shell=0 ;;
-            macos) flg_Macos=0 ;;
-        esac
     done
 }
 
@@ -510,11 +542,22 @@ setup_git_identity() {
 }
 
 resolve_brew_groups() {
+    local any_group_on=0
+    [[ "${brew_cli}" -eq 1 || "${brew_apps}" -eq 1 || "${brew_wm}" -eq 1 || "${brew_sbar}" -eq 1 ]] &&
+        any_group_on=1
+
+    # An explicitly-enabled brew group implies installing packages.
+    [[ "${any_group_on}" -eq 1 ]] && flg_Packages=1
+
     if [[ "${flg_Packages}" -eq 1 ]]; then
-        [[ "${brew_cli}" -lt 0 ]] && brew_cli=1
-        [[ "${brew_apps}" -lt 0 ]] && brew_apps=1
-        [[ "${brew_wm}" -lt 0 ]] && brew_wm=1
-        [[ "${brew_sbar}" -lt 0 ]] && brew_sbar=1
+        # If the user named specific groups, unset groups stay off; if they asked
+        # for packages without naming any group, unset groups default on.
+        local unset_default=1
+        [[ "${any_group_on}" -eq 1 ]] && unset_default=0
+        [[ "${brew_cli}" -lt 0 ]] && brew_cli=${unset_default}
+        [[ "${brew_apps}" -lt 0 ]] && brew_apps=${unset_default}
+        [[ "${brew_wm}" -lt 0 ]] && brew_wm=${unset_default}
+        [[ "${brew_sbar}" -lt 0 ]] && brew_sbar=${unset_default}
     else
         brew_cli=0
         brew_apps=0
@@ -529,6 +572,18 @@ validate_selection() {
         print_log -err "Brewfile" "Packages selected but all brew groups are off"
         return 1
     fi
+
+    # Dependency warnings — permissive (Q3): linking dotfiles or starting a
+    # guarded service without its package is harmless, and you may already have
+    # the tool installed. Warn, don't block.
+    [[ "${flg_WmConfigs}" -eq 1 && "${brew_wm}" -ne 1 ]] &&
+        print_log -warn "Deps" "Linking window-manager configs, but no WM packages are selected"
+    [[ "${flg_WmServices}" -eq 1 && "${brew_wm}" -ne 1 ]] &&
+        print_log -warn "Deps" "Starting window-manager services, but no WM packages are selected"
+    [[ "${flg_SbarConfigs}" -eq 1 && "${brew_sbar}" -ne 1 ]] &&
+        print_log -warn "Deps" "Linking the SketchyBar config, but no SketchyBar packages are selected"
+    [[ "${flg_SbarService}" -eq 1 && "${brew_sbar}" -ne 1 ]] &&
+        print_log -warn "Deps" "Starting the SketchyBar service, but no SketchyBar packages are selected"
     return 0
 }
 
@@ -540,10 +595,13 @@ describe_plan() {
         [[ "${brew_sbar}" -eq 1 ]] && print_log -info "SketchyBar" "Would run install_sketchybar.sh"
     fi
     [[ "${flg_Shell}" -eq 1 ]] && print_log -info "Shell" "Would run install_shell.sh"
-    [[ "${flg_Configs}" -eq 1 ]] && print_log -info "Configs" "Would run ./install -c install.conf.yaml"
-    [[ "${flg_WmConfigs}" -eq 1 ]] && print_log -info "WM configs" "Would run ./install -c install.wm.conf.yaml"
+    [[ "${flg_Configs}" -eq 1 ]] && print_log -info "Base dotfiles" "Would link install.conf.yaml"
+    [[ "${flg_WmConfigs}" -eq 1 ]] && print_log -info "WM configs" "Would link install.wm.conf.yaml (yabai / skhd / borders)"
+    [[ "${flg_SbarConfigs}" -eq 1 ]] && print_log -info "SketchyBar config" "Would link install.sketchybar.conf.yaml"
     [[ "${flg_Macos}" -eq 1 ]] && print_log -info "macOS" "Would run scripts/macos.sh"
-    [[ "${flg_Services}" -eq 1 ]] && print_log -info "Services" "Would run install_services.sh"
+    if [[ "${flg_WmServices}" -eq 1 || "${flg_SbarService}" -eq 1 ]]; then
+        print_log -info "Services" "Would start services (wm=${flg_WmServices} sketchybar=${flg_SbarService})"
+    fi
     return 0
 }
 
@@ -576,14 +634,15 @@ main() {
     resolve_brew_groups
     validate_selection || exit 1
 
-    export flg_DryRun flg_Packages flg_Shell flg_Configs flg_WmConfigs flg_Services flg_Macos
+    export flg_DryRun flg_Packages flg_Shell flg_Configs
+    export flg_WmConfigs flg_WmServices flg_SbarConfigs flg_SbarService flg_Macos
     export DOTFILES_BREW_CLI="${brew_cli}"
     export DOTFILES_BREW_APPS="${brew_apps}"
     export DOTFILES_BREW_WM="${brew_wm}"
     export DOTFILES_BREW_SKETCHYBAR="${brew_sbar}"
 
     need_pre=0
-    if [[ "${flg_Packages}" -eq 1 || "${flg_Configs}" -eq 1 || "${flg_WmConfigs}" -eq 1 ]]; then
+    if [[ "${flg_Packages}" -eq 1 || "${flg_Configs}" -eq 1 || "${flg_WmConfigs}" -eq 1 || "${flg_SbarConfigs}" -eq 1 ]]; then
         need_pre=1
     fi
 
@@ -598,13 +657,29 @@ main() {
     fi
 
     echo ""
-    print_log -info "Plan" "Selected components:"
-    [[ "${flg_Packages}" -eq 1 ]] && print_log -g " +" "Packages (cli=${brew_cli} apps=${brew_apps} wm=${brew_wm} sketchybar=${brew_sbar})"
-    [[ "${flg_Shell}" -eq 1 ]] && print_log -g " +" "Shell environment"
-    [[ "${flg_Configs}" -eq 1 ]] && print_log -g " +" "Base configs"
-    [[ "${flg_WmConfigs}" -eq 1 ]] && print_log -g " +" "WM configs"
-    [[ "${flg_Macos}" -eq 1 ]] && print_log -g " +" "macOS defaults"
-    [[ "${flg_Services}" -eq 1 ]] && print_log -g " +" "Services"
+    if ui_rich; then
+        {
+            echo "## roost — install plan"
+            [[ "${flg_Packages}" -eq 1 ]] && echo "- **Packages** — cli=${brew_cli} apps=${brew_apps} wm=${brew_wm} sketchybar=${brew_sbar}"
+            [[ "${flg_Shell}" -eq 1 ]] && echo "- **Shell environment**"
+            [[ "${flg_Configs}" -eq 1 ]] && echo "- **Base dotfiles**"
+            [[ "${flg_WmConfigs}" -eq 1 ]] && echo "- **Window-manager configs** (yabai / skhd / borders)"
+            [[ "${flg_SbarConfigs}" -eq 1 ]] && echo "- **SketchyBar config**"
+            [[ "${flg_WmServices}" -eq 1 ]] && echo "- **Window-manager services**"
+            [[ "${flg_SbarService}" -eq 1 ]] && echo "- **SketchyBar service**"
+            [[ "${flg_Macos}" -eq 1 ]] && echo "- **macOS defaults**"
+        } | gum format
+    else
+        print_log -info "Plan" "Selected:"
+        [[ "${flg_Packages}" -eq 1 ]] && print_log -g " +" "Packages (cli=${brew_cli} apps=${brew_apps} wm=${brew_wm} sketchybar=${brew_sbar})"
+        [[ "${flg_Shell}" -eq 1 ]] && print_log -g " +" "Shell environment"
+        [[ "${flg_Configs}" -eq 1 ]] && print_log -g " +" "Base dotfiles"
+        [[ "${flg_WmConfigs}" -eq 1 ]] && print_log -g " +" "Window-manager configs"
+        [[ "${flg_SbarConfigs}" -eq 1 ]] && print_log -g " +" "SketchyBar config"
+        [[ "${flg_WmServices}" -eq 1 ]] && print_log -g " +" "Window-manager services"
+        [[ "${flg_SbarService}" -eq 1 ]] && print_log -g " +" "SketchyBar service"
+        [[ "${flg_Macos}" -eq 1 ]] && print_log -g " +" "macOS defaults"
+    fi
     echo ""
 
     if [[ "${need_pre}" -eq 1 && "${pre_done:-0}" -ne 1 ]]; then
@@ -636,10 +711,18 @@ main() {
     fi
 
     if [[ "${flg_WmConfigs}" -eq 1 ]]; then
-        print_log -info "WM configs" "Linking window manager configs..."
+        print_log -info "WM configs" "Linking window-manager configs (yabai / skhd / borders)..."
         (
             cd "${repoDir}"
             ./install -c install.wm.conf.yaml
+        )
+    fi
+
+    if [[ "${flg_SbarConfigs}" -eq 1 ]]; then
+        print_log -info "SketchyBar config" "Linking the SketchyBar config..."
+        (
+            cd "${repoDir}"
+            ./install -c install.sketchybar.conf.yaml
         )
     fi
 
@@ -648,9 +731,10 @@ main() {
         bash "${scrDir}/macos.sh"
     fi
 
-    if [[ "${flg_Services}" -eq 1 ]]; then
-        print_log -info "Services" "Configuring services..."
-        "${scrDir}/install_services.sh"
+    if [[ "${flg_WmServices}" -eq 1 || "${flg_SbarService}" -eq 1 ]]; then
+        print_log -info "Services" "Starting selected services..."
+        DOTFILES_START_WM="${flg_WmServices}" DOTFILES_START_SBAR="${flg_SbarService}" \
+            "${scrDir}/install_services.sh"
     fi
 
     print_log -g "SUCCESS" "Installation finished"
@@ -659,13 +743,13 @@ main() {
             echo "# Next steps"
             echo "- Restart your terminal, or \`source ~/.zshrc\`"
             [[ "${flg_Shell}" -eq 1 ]] && echo "- Run \`p10k configure\` to customize your prompt"
-            [[ "${flg_Services}" -eq 1 || "${brew_wm}" -eq 1 ]] && echo "- Log out/in so window management picks up Accessibility permissions"
+            [[ "${flg_WmServices}" -eq 1 || "${brew_wm}" -eq 1 ]] && echo "- Log out/in so window management picks up Accessibility permissions"
             echo "- See \`README.md\` for customization and key bindings"
         } | gum format
     else
         print_log -info "Next" "Restart your terminal (or source ~/.zshrc)"
         [[ "${flg_Shell}" -eq 1 ]] && print_log -info "Next" "Run 'p10k configure' to customize your prompt"
-        [[ "${flg_Services}" -eq 1 || "${brew_wm}" -eq 1 ]] && print_log -info "Next" "Log out/in so window management picks up Accessibility permissions"
+        [[ "${flg_WmServices}" -eq 1 || "${brew_wm}" -eq 1 ]] && print_log -info "Next" "Log out/in so window management picks up Accessibility permissions"
         print_log -info "Docs" "See README.md for customization and key bindings"
     fi
 }

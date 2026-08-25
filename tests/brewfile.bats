@@ -8,9 +8,9 @@ tap "felixkratz/formulae" if sbar || wm
 brew "gum" if cli
 cask "raycast" if apps
 mas "Xcode", id: 497799835 if apps
-brew "yabai" if wm # required:wm-configs,services
+brew "yabai" if wm
 brew "borders" if wm
-brew "sketchybar" if sbar # required:wm-configs,services
+brew "sketchybar" if sbar
 EOF
 }
 
@@ -18,11 +18,6 @@ EOF
     run brewfile_candidates "${FIXTURE}" wm
     [[ "${output}" == *"yabai"* ]]
     [[ "${output}" == *"borders"* ]]
-}
-
-@test "candidates carry the required marker" {
-    run brewfile_candidates "${FIXTURE}" wm
-    [[ "${output}" == *"wm-configs,services"* ]]
 }
 
 @test "candidates exclude other groups" {
