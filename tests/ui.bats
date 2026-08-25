@@ -23,3 +23,25 @@ setup() {
     [ "$status" -eq 0 ]
     [ "$output" = "fallback" ]
 }
+
+@test "with_retry succeeds when the command succeeds" {
+    run with_retry 3 true
+    [ "$status" -eq 0 ]
+}
+
+@test "with_retry gives up after max attempts" {
+    run with_retry 2 false
+    [ "$status" -ne 0 ]
+}
+
+@test "with_retry retries until the command succeeds" {
+    marker="${BATS_TEST_TMPDIR}/attempts"
+    : >"${marker}"
+    flaky() {
+        printf 'x' >>"${marker}"
+        [ "$(wc -c <"${marker}")" -ge 2 ]
+    }
+    export -f flaky
+    run with_retry 5 flaky
+    [ "$status" -eq 0 ]
+}

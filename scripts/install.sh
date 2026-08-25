@@ -441,6 +441,7 @@ describe_plan() {
 }
 
 main() {
+    enable_error_trap
     parse_args "$@"
 
     if [[ "${flg_ResetYabai}" -eq 1 ]]; then

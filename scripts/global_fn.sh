@@ -119,6 +119,39 @@ run_spin() {
     fi
 }
 
+on_error() {
+    # ERR-trap handler: report the failing command, line, and script.
+    local exit_code=$?
+    local line=${1:-?}
+    local cmd=${2:-?}
+    print_log -err "Failed" "Exit ${exit_code} at ${BASH_SOURCE[1]:-script}:${line} — ${cmd}"
+    print_log -info "Logs" "Details in ${cacheDir}/logs"
+    exit "${exit_code}"
+}
+
+enable_error_trap() {
+    # Opt-in from a script's top level (or main) to get a clear failure report
+    # instead of a silent abort. errtrace makes the trap fire inside functions.
+    set -o errtrace
+    trap 'on_error "${LINENO}" "${BASH_COMMAND}"' ERR
+}
+
+with_retry() {
+    # with_retry <max> cmd args...  — retry a (network) command with linear backoff.
+    local max=$1
+    shift
+    local attempt=1
+    until "$@"; do
+        if ((attempt >= max)); then
+            print_log -err "Retry" "Failed after ${max} attempts: $*"
+            return 1
+        fi
+        print_log -y "Retry" "Attempt ${attempt}/${max} failed; retrying in $((attempt * 3))s..."
+        sleep "$((attempt * 3))"
+        ((attempt++)) || true
+    done
+}
+
 _log_to_file() {
     # Append a plain (ANSI-free) line to the session log, best-effort.
     local line=$1
@@ -201,7 +234,7 @@ backup_existing() {
 install_oh_my_zsh() {
     if [[ ! -d "${HOME}/.oh-my-zsh" ]]; then
         print_log -info "Oh My Zsh" "Installing Oh My Zsh..."
-        run_spin "Installing Oh My Zsh" \
+        with_retry 3 run_spin "Installing Oh My Zsh" \
             sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
         print_log -g "Success" "Oh My Zsh installed"
     else
@@ -214,7 +247,7 @@ install_powerlevel10k() {
 
     if [[ ! -d "${p10k_dir}" ]]; then
         print_log -info "Powerlevel10k" "Installing Powerlevel10k..."
-        run_spin "Cloning Powerlevel10k" \
+        with_retry 3 run_spin "Cloning Powerlevel10k" \
             git clone --depth=1 https://github.com/romkatv/powerlevel10k.git "${p10k_dir}"
         print_log -g "Success" "Powerlevel10k installed"
     else
@@ -225,7 +258,7 @@ install_powerlevel10k() {
 install_nvm() {
     if [[ ! -d "${HOME}/.nvm" ]]; then
         print_log -info "NVM" "Installing Node Version Manager..."
-        run_spin "Cloning nvm" \
+        with_retry 3 run_spin "Cloning nvm" \
             git clone https://github.com/nvm-sh/nvm.git "${HOME}/.nvm"
         (
             cd "${HOME}/.nvm"

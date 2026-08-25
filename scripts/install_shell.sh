@@ -6,6 +6,7 @@ set -euo pipefail
 scrDir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=global_fn.sh
 source "${scrDir}/global_fn.sh"
+enable_error_trap
 
 print_log -sec "install-shell" -info "Starting" "Shell environment installation"
 
@@ -18,7 +19,7 @@ mkdir -p "${plugin_dir}"
 
 if [[ ! -d "${plugin_dir}/fzf-zsh-plugin" ]]; then
     print_log -sec "install-shell" -info "Plugin" "Installing fzf-zsh-plugin..."
-    run_spin "Cloning fzf-zsh-plugin" \
+    with_retry 3 run_spin "Cloning fzf-zsh-plugin" \
         git clone --depth 1 https://github.com/unixorn/fzf-zsh-plugin.git "${plugin_dir}/fzf-zsh-plugin"
     print_log -sec "install-shell" -g "Success" "fzf-zsh-plugin installed"
 else

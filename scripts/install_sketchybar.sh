@@ -6,6 +6,7 @@ set -euo pipefail
 scrDir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=global_fn.sh
 source "${scrDir}/global_fn.sh"
+enable_error_trap
 
 print_log -sec "sketchybar" -info "Starting" "SketchyBar setup"
 

@@ -6,6 +6,7 @@ set -euo pipefail
 scrDir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=global_fn.sh
 source "${scrDir}/global_fn.sh"
+enable_error_trap
 
 print_log -sec "pre-install" -info "Starting" "Pre-installation setup"
 
@@ -20,8 +21,14 @@ if ! xcode_tools_installed; then
     xcode-select --install
     print_log -sec "pre-install" -y "Waiting" "Complete the installer dialog, then this script will continue"
 
+    attempt=0
     while ! xcode_tools_installed; do
+        if ((attempt >= 120)); then
+            print_log -sec "pre-install" -err "Timeout" "Xcode CLT not detected after 600s — finish the installer dialog, then re-run this script"
+            exit 1
+        fi
         sleep 5
+        ((attempt++)) || true
         print_log -sec "pre-install" -y "Waiting" "Still waiting for Xcode Command Line Tools..."
     done
     print_log -sec "pre-install" -g "Success" "Xcode Command Line Tools installed"
@@ -47,14 +54,14 @@ fi
 
 if ! command_exists gum; then
     print_log -sec "pre-install" -info "gum" "Installing gum (installer UI)..."
-    brew install gum
+    with_retry 3 brew install gum
 fi
 
 print_log -sec "pre-install" -info "Privacy" "Disabling Homebrew analytics..."
 brew analytics off
 
 print_log -sec "pre-install" -info "Update" "Updating Homebrew..."
-run_spin "Updating Homebrew" brew update
+with_retry 3 run_spin "Updating Homebrew" brew update
 
 mkdir -p "${cacheDir}/logs"
 
