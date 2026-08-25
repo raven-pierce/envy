@@ -4,4 +4,4 @@
 	ignore = dirty
 [submodule "configs/nvim"]
 	path = configs/nvim
-	url = https://github.com/LazyVim/starter
+	url = https://github.com/LazyVim/starter.git
