@@ -14,7 +14,7 @@ if ! command_exists yabai; then
     exit 1
 fi
 
-YABAI_BIN="$(which yabai)"
+YABAI_BIN="$(command -v yabai)"
 YABAI_HASH="$(shasum -a 256 "${YABAI_BIN}" | cut -d " " -f 1)"
 SUDOERS_FILE="/private/etc/sudoers.d/yabai"
 
@@ -36,7 +36,10 @@ yabai --stop-service 2>/dev/null || true
 yabai --uninstall-service 2>/dev/null || true
 
 print_log -sec "reset-yabai" -info "SA" "Uninstalling scripting addition..."
-sudo yabai --uninstall-sa
+if ! sudo yabai --uninstall-sa; then
+    print_log -sec "reset-yabai" -err "SA" "Failed to uninstall the scripting addition — aborting to avoid a half-configured state"
+    exit 1
+fi
 
 print_log -sec "reset-yabai" -info "Sudoers" "Rewriting ${SUDOERS_FILE}..."
 sudo rm -f "${SUDOERS_FILE}"
@@ -44,7 +47,10 @@ echo "$(whoami) ALL=(root) NOPASSWD: sha256:${YABAI_HASH} ${YABAI_BIN} --load-sa
 sudo chmod 0440 "${SUDOERS_FILE}"
 
 print_log -sec "reset-yabai" -info "SA" "Loading scripting addition..."
-sudo yabai --load-sa
+if ! sudo yabai --load-sa; then
+    print_log -sec "reset-yabai" -err "SA" "Failed to load the scripting addition — check SIP and the sudoers entry"
+    exit 1
+fi
 
 print_log -sec "reset-yabai" -info "Service" "Installing and starting yabai service..."
 yabai --install-service
