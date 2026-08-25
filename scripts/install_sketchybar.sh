@@ -11,7 +11,7 @@ enable_error_trap
 print_log -sec "sketchybar" -info "Starting" "SketchyBar setup"
 
 if ! pkg_installed "sketchybar"; then
-    print_log -sec "sketchybar" -err "Missing" "SketchyBar not found! Install the SketchyBar brew group first."
+    print_log -sec "sketchybar" -err "Missing" "SketchyBar not found — install the SketchyBar group first"
     exit 1
 fi
 

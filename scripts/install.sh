@@ -280,8 +280,8 @@ gum_picker() {
         "macOS system defaults"
     )
     local chosen
-    chosen="$(printf '%s\n' "${features[@]}" | gum choose --no-limit \
-        --header="What should roost set up? — space toggles, enter confirms" \
+    chosen="$(printf '%s\n' "${features[@]}" | gum choose --no-limit --show-help \
+        --header="What should roost set up? (pick any)" \
         --selected="CLI tools & fonts,Shell environment (Oh My Zsh / Powerlevel10k / nvm),Base dotfiles (git / shell / editors)")" || chosen=""
 
     grep -q "^CLI tools" <<<"${chosen}" && {
@@ -400,8 +400,8 @@ _select_group_packages() {
     )"
 
     local chosen keep_all=0
-    chosen="$(printf '%s\n' "${labels[@]}" | gum choose --no-limit --height 20 \
-        --header="${group} packages — space toggles, enter keeps the checked set" \
+    chosen="$(printf '%s\n' "${labels[@]}" | gum choose --no-limit --height 20 --show-help \
+        --header="${group} packages (keep the ones you want)" \
         --selected="${preselect}")" || keep_all=1
 
     if [[ "${keep_all}" -eq 1 ]]; then

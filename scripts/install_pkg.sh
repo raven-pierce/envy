@@ -11,7 +11,7 @@ enable_error_trap
 print_log -sec "install-pkg" -info "Starting" "Package installation via Homebrew Bundle"
 
 if ! homebrew_installed; then
-    print_log -sec "install-pkg" -err "Missing" "Homebrew not found! Run pre-install first."
+    print_log -sec "install-pkg" -err "Missing" "Homebrew not found — run the prerequisites step first"
     exit 1
 fi
 
