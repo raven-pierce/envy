@@ -1,26 +1,26 @@
 #!/usr/bin/env bash
+# macOS defaults — adapted from https://mths.be/macos
+# Optional: COMPUTER_NAME="MyMac" ./scripts/macos.sh to set hostnames.
 
-# ~/.macos — https://mths.be/macos
+set -euo pipefail
 
-# Close any open System Preferences panes, to prevent them from overriding
-# settings we’re about to change
-osascript -e 'tell application "System Preferences" to quit'
+# Close any open System Settings panes so they do not override changes
+osascript -e 'tell application "System Settings" to quit' 2>/dev/null || \
+    osascript -e 'tell application "System Preferences" to quit' 2>/dev/null || true
 
-# Ask for the administrator password upfront
 sudo -v
-
-# Keep-alive: update existing `sudo` time stamp until `.macos` has finished
 while true; do sudo -n true; sleep 60; kill -0 "$$" || exit; done 2>/dev/null &
 
 ###############################################################################
 # General UI/UX                                                               #
 ###############################################################################
 
-# Set computer name (as done via System Preferences → Sharing)
-sudo scutil --set ComputerName "0x72766E"
-sudo scutil --set HostName "0x72766E"
-sudo scutil --set LocalHostName "0x72766E"
-sudo defaults write /Library/Preferences/SystemConfiguration/com.apple.smb.server NetBIOSName -string "0x72766E"
+if [[ -n "${COMPUTER_NAME:-}" ]]; then
+    sudo scutil --set ComputerName "${COMPUTER_NAME}"
+    sudo scutil --set HostName "${COMPUTER_NAME}"
+    sudo scutil --set LocalHostName "${COMPUTER_NAME}"
+    sudo defaults write /Library/Preferences/SystemConfiguration/com.apple.smb.server NetBIOSName -string "${COMPUTER_NAME}"
+fi
 
 # Set sidebar icon size to medium
 defaults write NSGlobalDomain NSTableViewDefaultSizeMode -int 2
@@ -324,6 +324,6 @@ for app in "Activity Monitor" \
 	"Messages" \
 	"Photos" \
 	"SystemUIServer"; do
-	killall "${app}" &> /dev/null
+	killall "${app}" &> /dev/null || true
 done
 echo "Done. Note that some of these changes require a logout/restart to take effect."
