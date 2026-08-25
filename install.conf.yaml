@@ -9,26 +9,20 @@
 - clean: ['~']
 
 - link:
-    # Shell Configuration
+    # Shell
     ~/.zprofile: configs/shell/zprofile
     ~/.zshrc: configs/shell/zshrc
     ~/.p10k.zsh: configs/shell/p10k.zsh
     ~/.config/aliases: configs/shell/aliases
-    
-    # Git Configuration
+
+    # Git
     ~/.gitconfig: configs/git/gitconfig
     ~/.gitignore: configs/git/gitignore
-    
-    # Neovim Configuration
+
+    # Editor
     ~/.config/nvim: configs/nvim
-    
-    # Window Management
-    ~/.config/yabai: configs/yabai
-    ~/.config/skhd: configs/skhd
-    ~/.config/sketchybar: configs/sketchybar
-    ~/.config/borders: configs/borders
-    
-    # Other Tools
+
+    # CLI Tools
     ~/.config/bat: configs/bat
     ~/.config/btop: configs/btop
     ~/.config/fastfetch: configs/fastfetch
@@ -38,19 +32,11 @@
     - ~/Desktop/Screenshots
 
 - shell:
-    - description: "Setting executable permissions for window manager configs..."
-      command: |
-        [ -f ~/.config/yabai/yabairc ] && chmod +x ~/.config/yabai/yabairc
-        [ -f ~/.config/skhd/skhdrc ] && chmod +x ~/.config/skhd/skhdrc  
-        [ -f ~/.config/sketchybar/sketchybarrc ] && chmod +x ~/.config/sketchybar/sketchybarrc
-      stdout: true
-      stderr: true 
-
-    - description: "Fixing Oh My Zsh insecure directories permissions..."
+    - description: "Fix Oh My Zsh insecure directory permissions..."
       command: |
         if command -v brew >/dev/null 2>&1; then
           chmod go-w "$(brew --prefix)/share" 2>/dev/null || true
           chmod -R go-w "$(brew --prefix)/share/zsh" 2>/dev/null || true
         fi
       stdout: true
-      stderr: true 
+      stderr: true
