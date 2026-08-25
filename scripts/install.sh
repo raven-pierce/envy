@@ -326,6 +326,80 @@ run_interactive() {
     flg_AnyComponent=1
 }
 
+select_gpg_key() {
+    # Echo the chosen GPG key id (or empty). Lists local secret keys when gpg
+    # is available; otherwise falls back to a manual key-id prompt.
+    if ! command_exists gpg; then
+        prompt_input "GPG signing key ID" ""
+        return 0
+    fi
+
+    local keys
+    keys="$(gpg --list-secret-keys --keyid-format=long 2>/dev/null |
+        awk '/^sec/ { split($2, a, "/"); id = a[2] }
+             /^uid/ { sub(/^uid[[:space:]]+/, ""); print id "  " $0 }')"
+
+    if [[ -z "${keys}" ]]; then
+        prompt_input "GPG signing key ID (no secret keys found)" ""
+        return 0
+    fi
+
+    if ui_rich; then
+        local pick
+        pick="$(printf '%s\n' "${keys}" | gum choose --header="Select GPG signing key")" || true
+        printf '%s' "${pick%% *}"
+    else
+        print_log -info "GPG keys" "Available secret keys:"
+        printf '%s\n' "${keys}" >&2
+        prompt_input "GPG signing key ID (copy from the list above)" ""
+    fi
+}
+
+setup_git_identity() {
+    # Personalize configs/git/gitconfig before Dotbot links it. Forkers own
+    # their fork, so writing identity into the tracked file is intended.
+    local gc="${configDir}/git/gitconfig"
+
+    if grep -q '^\[user\]' "${gc}" 2>/dev/null; then
+        print_log -y "Skip" "git identity already set in ${gc}"
+        return 0
+    fi
+    if [[ "${use_default:-}" == "--yes" ]] || ! is_tty; then
+        print_log -warn "Git identity" "Non-interactive — add a [user] section to ${gc} by hand"
+        return 0
+    fi
+
+    local name email
+    name="$(prompt_input "Git author name" "")"
+    email="$(prompt_input "Git author email" "")"
+    if [[ -z "${name}" || -z "${email}" ]]; then
+        print_log -warn "Git identity" "Name/email blank — add a [user] section to ${gc} later"
+        return 0
+    fi
+
+    local key="" gpgprog=""
+    if prompt_yes_no "Enable GPG commit signing?" default_no; then
+        key="$(select_gpg_key)"
+        gpgprog="$(command -v gpg || true)"
+    fi
+
+    {
+        echo "[user]"
+        echo "	name = ${name}"
+        echo "	email = ${email}"
+        [[ -n "${key}" ]] && echo "	signingKey = ${key}"
+        echo "[init]"
+        echo "	defaultBranch = main"
+        if [[ -n "${key}" ]]; then
+            echo "[commit]"
+            echo "	gpgSign = true"
+            [[ -n "${gpgprog}" ]] && printf '[gpg]\n\tprogram = %s\n' "${gpgprog}"
+        fi
+    } >"${gc}"
+
+    print_log -g "Git identity" "Wrote ${gc}"
+}
+
 resolve_brew_groups() {
     if [[ "${flg_Packages}" -eq 1 ]]; then
         [[ "${brew_cli}" -lt 0 ]] && brew_cli=1
@@ -443,6 +517,7 @@ main() {
 
     if [[ "${flg_Configs}" -eq 1 ]]; then
         print_log -info "Configs" "Linking base configs..."
+        setup_git_identity
         (
             cd "${repoDir}"
             ./install -c install.conf.yaml
