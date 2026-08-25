@@ -588,7 +588,7 @@ validate_selection() {
 }
 
 describe_plan() {
-    print_log -y "DRY RUN" " — no changes will be made"
+    print_log -y "DRY RUN" "no changes will be made"
     [[ "${need_pre}" -eq 1 ]] && print_log -info "Pre" "Would run install_pre.sh (Xcode CLT, Homebrew)"
     if [[ "${flg_Packages}" -eq 1 ]]; then
         print_log -info "Packages" "Would brew bundle Brewfile (cli=${brew_cli} apps=${brew_apps} wm=${brew_wm} sketchybar=${brew_sbar})"
@@ -702,7 +702,7 @@ main() {
     fi
 
     if [[ "${flg_Configs}" -eq 1 ]]; then
-        print_log -info "Configs" "Linking base configs..."
+        print_log -info "Base dotfiles" "Linking base dotfiles..."
         setup_git_identity
         (
             cd "${repoDir}"

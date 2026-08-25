@@ -261,7 +261,7 @@ install_powerlevel10k() {
 
 install_nvm() {
     if [[ ! -d "${HOME}/.nvm" ]]; then
-        print_log -info "NVM" "Installing Node Version Manager..."
+        print_log -info "nvm" "Installing nvm (Node Version Manager)..."
         with_retry 3 run_spin "Cloning nvm" \
             git clone https://github.com/nvm-sh/nvm.git "${HOME}/.nvm"
         (

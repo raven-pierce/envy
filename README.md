@@ -4,12 +4,12 @@ A macOS development environment you can make your own: Homebrew packages, shell 
 
 ## Features
 
-- Component-based installer (pick what you want)
-- Rich multi-select picker via [`gum`](https://github.com/charmbracelet/gum) where available, with a plain-prompt fallback
-- Interactive picker on a TTY; non-interactive runs require explicit flags
+- Feature-first installer: pick features (CLI tools, GUI apps, shell, base dotfiles, window management, SketchyBar, macOS defaults) and each feature's configs/services follow as dependency-gated steps
+- Rich UI via [`gum`](https://github.com/charmbracelet/gum) where available — multi-select, confirms, spinners, styled plans — with a plain-prompt fallback (and no prompts at all when non-interactive)
+- Per-package pruning: within a chosen feature, deselect individual formulae/casks/apps you don't want; dropping a feature's core tool (yabai / sketchybar) skips its configs and services
+- Window management and SketchyBar are independent — take yabai without SketchyBar, or vice versa
 - First run prompts for your git identity (name, email, optional GPG signing key) and writes it into `configs/git/gitconfig` before linking
-- One Brewfile with selectable groups (CLI, apps, window management)
-- Dotbot for declarative symlinks
+- One Brewfile with selectable groups; Dotbot for declarative symlinks
 - Optional macOS defaults (hostname is never forced)
 
 ## Quick start
@@ -37,13 +37,13 @@ git submodule update --init --recursive
 
 ## Installer
 
-On a terminal with no flags, you get an interactive picker. Away from a TTY (CI, pipes), pass components or `--all`.
+On a terminal with no flags, you get the interactive feature-first picker. Away from a TTY (CI, pipes), pass components or `--all` — no prompts are shown.
 
 ```bash
-./scripts/install.sh                        # interactive
+./scripts/install.sh                        # interactive picker
 ./scripts/install.sh --packages --shell --configs
+./scripts/install.sh --brew-wm --wm-configs --wm-services   # WM only, end to end
 ./scripts/install.sh --packages --no-brew-apps --brew-sketchybar --no-brew-wm
-./scripts/install.sh --wm-configs --services
 ./scripts/install.sh --all --dry-run
 ./scripts/install.sh --macos                # system defaults only
 COMPUTER_NAME="MyMac" ./scripts/install.sh --macos
@@ -57,17 +57,22 @@ COMPUTER_NAME="MyMac" ./scripts/install.sh --macos
 | `--brew-apps` / `--no-brew-apps` | Toggle GUI casks + Mac App Store group |
 | `--brew-wm` / `--no-brew-wm` | Toggle yabai / skhd / borders group |
 | `--brew-sketchybar` / `--no-brew-sketchybar` | Toggle SketchyBar, lua, luarocks, audio helpers |
-| `--shell` | Oh My Zsh, Powerlevel10k, NVM, fzf plugin |
-| `--configs` | Base Dotbot links (`install.conf.yaml`) |
-| `--wm-configs` | WM Dotbot links (`install.wm.conf.yaml`) |
-| `--services` | Start WM services |
+| `--shell` | Oh My Zsh, Powerlevel10k, nvm, fzf plugin |
+| `--configs` | Base dotfiles — git / shell / editors (`install.conf.yaml`) |
+| `--wm-configs` | Window-manager configs — yabai / skhd / borders (`install.wm.conf.yaml`) |
+| `--sketchybar-configs` | SketchyBar config (`install.sketchybar.conf.yaml`) |
+| `--wm-services` | Start window-manager services (yabai / skhd / borders) |
+| `--sketchybar-service` | Start the SketchyBar service |
+| `--services` | Start both WM and SketchyBar services |
 | `--macos` | Apply `scripts/macos.sh` defaults |
 | `--all` | Everything above (all brew groups on) |
 | `--reset-yabai` | Reinstall the yabai scripting addition (after a yabai upgrade) |
 | `--yes` / `-y` | Accept prompt defaults where used |
 | `--dry-run` / `-n` | Print the plan only |
 
-Legacy short flags still work: `-i` (packages), `-h` (shell), `-r` (configs), `-s` (services), `-n` (dry-run).
+An explicitly-named brew group (e.g. `--brew-wm`) implies `--packages` and enables only that group. Legacy short flags still work: `-i` (packages), `-h` (shell), `-r` (configs), `-s` (services), `-n` (dry-run).
+
+Per-package pruning is interactive-only (it needs `gum`'s multi-select); flag-driven and non-interactive runs install whole enabled groups.
 
 The Brewfile is normal Homebrew Ruby. Groups are gated with `DOTFILES_BREW_CLI`, `DOTFILES_BREW_APPS`, `DOTFILES_BREW_WM`, and `DOTFILES_BREW_SKETCHYBAR` (default `1` if unset), so a plain `brew bundle` still installs everything.
 
@@ -76,13 +81,15 @@ The Brewfile is normal Homebrew Ruby. Groups are gated with `DOTFILES_BREW_CLI`,
 ```
 .
 ├── bootstrap.sh
-├── install                 # Dotbot wrapper (-c CONFIG)
-├── install.conf.yaml       # Base configs
-├── install.wm.conf.yaml    # Window manager configs
-├── Brewfile                # One bundle; groups selectable via env/flags
+├── install                       # Dotbot wrapper (-c CONFIG)
+├── install.conf.yaml             # Base dotfiles (git / shell / editors)
+├── install.wm.conf.yaml          # Window-manager configs (yabai / skhd / borders)
+├── install.sketchybar.conf.yaml  # SketchyBar config
+├── Brewfile                      # One bundle; groups selectable via env/flags
 ├── scripts/
-│   ├── install.sh          # Orchestrator + picker
-│   ├── global_fn.sh
+│   ├── install.sh                # Orchestrator + feature-first picker
+│   ├── global_fn.sh              # Shared helpers + gum-backed UI
+│   ├── brewfile.sh               # Brewfile parse/filter for per-package pruning
 │   ├── install_pre.sh
 │   ├── install_pkg.sh
 │   ├── install_shell.sh
@@ -90,7 +97,8 @@ The Brewfile is normal Homebrew Ruby. Groups are gated with `DOTFILES_BREW_CLI`,
 │   ├── install_sketchybar.sh
 │   ├── macos.sh
 │   └── reset_yabai.sh
-└── configs/                # Linked into $HOME / ~/.config
+├── tests/                        # bats unit tests (make test)
+└── configs/                      # Linked into $HOME / ~/.config
 ```
 
 ## After install
@@ -113,8 +121,8 @@ This reinstalls the scripting addition and refreshes the hash-pinned sudoers ent
 ## Customize
 
 - Git identity: the repo ships `configs/git/gitconfig` with no `[user]` section. On first `--configs` run you are prompted for name, email, and whether to enable GPG signing (choosing a key from your keyring), and the values are written straight into `configs/git/gitconfig` before Dotbot links it. Since you fork first, personalizing the tracked file is expected; run `git update-index --skip-worktree configs/git/gitconfig` if you want to keep your details out of future commits.
-- Packages: edit `Brewfile` (keep the `if cli` / `if apps` / `if wm` / `if sbar` markers), then re-run `--packages` with the group flags you want
-- Configs: edit under `configs/`, update the Dotbot YAML, run `./install` or `./install -c install.wm.conf.yaml`
+- Packages: in the interactive picker, deselect individual packages per feature; for permanent changes edit `Brewfile` (keep the `if cli` / `if apps` / `if wm` / `if sbar` guards), then re-run with the group flags you want
+- Configs: edit under `configs/`, update the matching Dotbot YAML (`install.conf.yaml`, `install.wm.conf.yaml`, `install.sketchybar.conf.yaml`), then run `./install -c <file>`
 - Hostname during `--macos`: `COMPUTER_NAME=MyMac ./scripts/macos.sh`
 
 ## Key bindings
