@@ -206,11 +206,11 @@ parse_args() {
                 mark_component
                 shift
                 ;;
-            --yes | -y | -d)
+            --yes | -y)
                 export use_default="--yes"
                 shift
                 ;;
-            --dry-run | -n | -t)
+            --dry-run | -n)
                 flg_DryRun=1
                 shift
                 ;;
@@ -218,45 +218,8 @@ parse_args() {
                 usage
                 exit 0
                 ;;
-            -*)
-                opt="${1#-}"
-                i=0
-                while ((i < ${#opt})); do
-                    c="${opt:i:1}"
-                    case "$c" in
-                        i)
-                            flg_Packages=1
-                            mark_component
-                            ;;
-                        r)
-                            flg_Configs=1
-                            flg_WmConfigs=1
-                            flg_SbarConfigs=1
-                            mark_component
-                            ;;
-                        s)
-                            flg_WmServices=1
-                            flg_SbarService=1
-                            mark_component
-                            ;;
-                        h)
-                            flg_Shell=1
-                            mark_component
-                            ;;
-                        n | t) flg_DryRun=1 ;;
-                        d) export use_default="--yes" ;;
-                        *)
-                            print_log -err "Usage" "Unknown option: -$c"
-                            usage
-                            exit 1
-                            ;;
-                    esac
-                    ((i++)) || true
-                done
-                shift
-                ;;
             *)
-                print_log -err "Usage" "Unexpected argument: $1"
+                print_log -err "Usage" "Unknown option: $1"
                 usage
                 exit 1
                 ;;

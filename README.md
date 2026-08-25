@@ -70,7 +70,7 @@ COMPUTER_NAME="MyMac" ./scripts/install.sh --macos
 | `--yes` / `-y` | Accept prompt defaults where used |
 | `--dry-run` / `-n` | Print the plan only |
 
-An explicitly-named brew group (e.g. `--brew-wm`) implies `--packages` and enables only that group. Legacy short flags still work: `-i` (packages), `-h` (shell), `-r` (configs), `-s` (services), `-n` (dry-run).
+An explicitly-named brew group (e.g. `--brew-wm`) implies `--packages` and enables only that group.
 
 Per-package pruning is interactive-only (it needs `gum`'s multi-select); flag-driven and non-interactive runs install whole enabled groups.
 

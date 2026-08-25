@@ -48,12 +48,6 @@ setup() {
     [ "$flg_AnyComponent" -eq 0 ]
 }
 
-@test "legacy short flag -i maps to packages" {
-    reset_flags
-    parse_args -i
-    [ "$flg_Packages" -eq 1 ]
-}
-
 @test "unknown flag exits non-zero" {
     run bash -c 'cd "'"${BATS_TEST_DIRNAME}"'/.." && source scripts/install.sh && reset_flags && parse_args --nope'
     [ "$status" -ne 0 ]
