@@ -16,14 +16,19 @@ sbar = ENV.fetch("DOTFILES_BREW_SKETCHYBAR", "1") == "1"
 # ============================================================================
 # Taps
 # ============================================================================
+#
+# Homebrew 6.0+ refuses to load formulae/casks from non-official taps unless
+# they are trusted. `trusted: true` registers that trust from the Brewfile
+# itself (applied before any formula loads), so `brew bundle` stays
+# non-interactive — no manual `brew trust` step on a fresh machine.
 
-tap "asmvik/formulae" if wm
-tap "docker/tap" if cli || apps
-tap "felixkratz/formulae" if sbar || wm
-tap "jesseduffield/lazydocker" if cli
-tap "jesseduffield/lazygit" if cli
-tap "lerd-env/lerd" if cli
-tap "stripe/stripe-cli" if cli
+tap "asmvik/formulae", trusted: true if wm
+tap "docker/tap", trusted: true if cli || apps
+tap "felixkratz/formulae", trusted: true if sbar || wm
+tap "jesseduffield/lazydocker", trusted: true if cli
+tap "jesseduffield/lazygit", trusted: true if cli
+tap "lerd-env/lerd", trusted: true if cli
+tap "stripe/stripe-cli", trusted: true if cli
 
 # ============================================================================
 # Core System & CLI Tools
