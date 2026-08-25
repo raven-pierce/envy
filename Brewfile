@@ -1,187 +1,199 @@
 # ============================================================================
-# ENVY Development Environment - Homebrew Bundle
+# Homebrew Bundle
+#
+# Selectable groups (set by scripts/install.sh; default on if unset):
+#   DOTFILES_BREW_CLI=1        core CLI, languages, fonts, taps they need
+#   DOTFILES_BREW_APPS=1       GUI casks + Mac App Store
+#   DOTFILES_BREW_WM=1         yabai / skhd / borders + related
+#   DOTFILES_BREW_SKETCHYBAR=1 SketchyBar, lua, luarocks, audio helpers
 # ============================================================================
+
+cli  = ENV.fetch("DOTFILES_BREW_CLI",        "1") == "1"
+apps = ENV.fetch("DOTFILES_BREW_APPS",       "1") == "1"
+wm   = ENV.fetch("DOTFILES_BREW_WM",         "1") == "1"
+sbar = ENV.fetch("DOTFILES_BREW_SKETCHYBAR", "1") == "1"
 
 # ============================================================================
 # Taps
 # ============================================================================
 
-tap "asmvik/formulae"
-tap "docker/tap"
-tap "felixkratz/formulae"
-tap "jesseduffield/lazydocker"
-tap "jesseduffield/lazygit"
-tap "lerd-env/lerd"
-tap "stripe/stripe-cli"
+tap "asmvik/formulae" if wm
+tap "docker/tap" if cli || apps
+tap "felixkratz/formulae" if sbar || wm
+tap "jesseduffield/lazydocker" if cli
+tap "jesseduffield/lazygit" if cli
+tap "lerd-env/lerd" if cli
+tap "stripe/stripe-cli" if cli
 
 # ============================================================================
 # Core System & CLI Tools
 # ============================================================================
 
 # Shell and Utilities
-brew "bash"
-brew "vivid"
-brew "zsh"
-brew "zsh-autosuggestions"
-brew "zsh-completions"
-brew "zsh-syntax-highlighting"
+brew "bash" if cli
+brew "gum" if cli
+brew "vivid" if cli
+brew "zsh" if cli
+brew "zsh-autosuggestions" if cli
+brew "zsh-completions" if cli
+brew "zsh-syntax-highlighting" if cli
 
 # GNU Core Utilities
-brew "coreutils"
-brew "findutils"
-brew "gnu-sed"
-brew "grep"
-brew "less"
+brew "coreutils" if cli
+brew "findutils" if cli
+brew "gnu-sed" if cli
+brew "grep" if cli
+brew "less" if cli
 
 # Modern CLI Replacements
-brew "bat"
-brew "btop"
-brew "eza"
-brew "fastfetch"
-brew "fd"
-brew "fzf"
-brew "htop"
-brew "ripgrep"
-brew "yazi"
-brew "zoxide"
+brew "bat" if cli
+brew "btop" if cli
+brew "eza" if cli
+brew "fastfetch" if cli
+brew "fd" if cli
+brew "fzf" if cli
+brew "htop" if cli
+brew "ripgrep" if cli
+brew "yazi" if cli
+brew "zoxide" if cli
 
 # File and Data Tools
-brew "jq"
-brew "stow"
-brew "tmux"
-brew "trash"
-brew "tree"
-brew "unzip"
-brew "yq"
-cask "rar"
+brew "jq" if cli
+brew "stow" if cli
+brew "tmux" if cli
+brew "trash" if cli
+brew "tree" if cli
+brew "unzip" if cli
+brew "yq" if cli
+cask "rar" if cli
 
 # Network Tools
-brew "curl"
-brew "nmap"
-brew "wget"
+brew "curl" if cli
+brew "nmap" if cli
+brew "wget" if cli
 
 # Media & Audio Tools
-brew "nowplaying-cli"
-brew "switchaudio-osx"
-cask "focusrite-control-2"
+brew "nowplaying-cli" if sbar
+brew "switchaudio-osx" if sbar
+cask "focusrite-control-2" if apps
 
 # ============================================================================
 # Version Control & Development Core
 # ============================================================================
 
-brew "gh"
-brew "git"
-brew "git-delta"
-brew "lazygit"
-brew "tuicr"
+brew "gh" if cli
+brew "git" if cli
+brew "git-delta" if cli
+brew "lazygit" if cli
+brew "tuicr" if cli
 
 # Security Tools
-brew "gnupg"
-brew "openssh"
-cask "1password-cli"
+brew "gnupg" if cli
+brew "openssh" if cli
+cask "1password-cli" if cli
 
 # ============================================================================
 # Window Management & macOS Enhancements
 # ============================================================================
 
-brew "borders"
-brew "mas"
-brew "skhd"
-brew "sketchybar"
-brew "yabai"
-cask "linearmouse"
-cask "logitech-g-hub"
+brew "borders" if wm
+brew "mas" if cli
+brew "skhd" if wm
+brew "sketchybar" if sbar
+brew "yabai" if wm
+cask "linearmouse" if wm
+cask "logitech-g-hub" if apps
 
 # ============================================================================
 # Programming Languages & Runtimes
 # ============================================================================
 
-brew "lua"
-brew "luarocks"
-brew "python"
+brew "lua" if sbar
+brew "luarocks" if sbar
+brew "python" if cli
 
 # ============================================================================
 # Development Tools & IDEs
 # ============================================================================
 
 # Editors
-brew "neovim"
-cask "claude"
-cask "claude-code"
-cask "cursor"
-cask "jetbrains-toolbox"
-cask "visual-studio-code"
+brew "neovim" if cli
+cask "claude" if apps
+cask "claude-code" if apps
+cask "cursor" if apps
+cask "jetbrains-toolbox" if apps
+cask "visual-studio-code" if apps
 
 # Development Services
-brew "cloudflared"
-brew "lerd"
-brew "stripe"
-cask "bruno"
+brew "cloudflared" if cli
+brew "lerd" if cli
+brew "stripe" if cli
+cask "bruno" if apps
 
 # Git Clients
-cask "gitkraken"
-cask "tower"
+cask "gitkraken" if apps
+cask "tower" if apps
 
 # ============================================================================
 # DevOps & Infrastructure
 # ============================================================================
 
-brew "lazydocker"
-cask "docker-desktop"
-cask "sbx"
+brew "lazydocker" if cli
+cask "docker-desktop" if apps
+cask "sbx" if apps
 
 # ============================================================================
 # Database Management
 # ============================================================================
 
-cask "redis-insight"
-cask "tableplus"
+cask "redis-insight" if apps
+cask "tableplus" if apps
 
 # ============================================================================
 # Applications
 # ============================================================================
 
 # Security & System
-brew "mole"
-brew "pinentry-mac"
-cask "1password"
-cask "little-snitch"
-cask "mullvad-vpn"
-cask "raycast"
+brew "mole" if cli
+brew "pinentry-mac" if cli
+cask "1password" if apps
+cask "little-snitch" if apps
+cask "mullvad-vpn" if apps
+cask "raycast" if apps
 
 # Terminals
-cask "warp"
+cask "warp" if apps
 
 # Browsers
-cask "firefox"
+cask "firefox" if apps
 
 # Communication
-cask "discord"
-cask "slack"
-cask "zoom"
+cask "discord" if apps
+cask "slack" if apps
+cask "zoom" if apps
 
 # Design & Media
-cask "figma"
-cask "mactex-no-gui"
-cask "spotify"
+cask "figma" if apps
+cask "mactex-no-gui" if apps
+cask "spotify" if apps
 
 # Project Management
-cask "linear"
+cask "linear" if apps
 
 # ============================================================================
 # Fonts
 # ============================================================================
 
-cask "font-jetbrains-mono"
-cask "font-jetbrains-mono-nerd-font"
-cask "font-sf-mono"
-cask "font-sf-pro"
-cask "sf-symbols"
+cask "font-jetbrains-mono" if cli
+cask "font-jetbrains-mono-nerd-font" if cli
+cask "font-sf-mono" if cli
+cask "font-sf-pro" if cli
+cask "sf-symbols" if cli
 
 # ============================================================================
 # Mac App Store
 # ============================================================================
 
-mas "1Password for Safari", id: 1569813296
-mas "uBlock Origin Lite", id: 6745342698
-mas "Xcode", id: 497799835
+mas "1Password for Safari", id: 1569813296 if apps
+mas "uBlock Origin Lite", id: 6745342698 if apps
+mas "Xcode", id: 497799835 if apps

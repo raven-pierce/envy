@@ -45,6 +45,11 @@ else
     print_log -sec "pre-install" -g "Found" "Homebrew already installed"
 fi
 
+if ! command_exists gum; then
+    print_log -sec "pre-install" -info "gum" "Installing gum (installer UI)..."
+    brew install gum
+fi
+
 print_log -sec "pre-install" -info "Privacy" "Disabling Homebrew analytics..."
 brew analytics off
 
