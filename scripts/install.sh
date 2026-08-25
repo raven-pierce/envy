@@ -6,6 +6,8 @@ set -euo pipefail
 scrDir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=global_fn.sh
 source "${scrDir}/global_fn.sh"
+# shellcheck source=brewfile.sh
+source "${scrDir}/brewfile.sh"
 
 usage() {
     cat <<EOF
@@ -315,8 +317,103 @@ gum_picker() {
         grep -q "^GUI apps" <<<"${gchosen}" && brew_apps=1 || brew_apps=0
         grep -q "^Window management" <<<"${gchosen}" && brew_wm=1 || brew_wm=0
         grep -q "^SketchyBar" <<<"${gchosen}" && brew_sbar=1 || brew_sbar=0
+
+        select_packages
     fi
     return 0
+}
+
+select_packages() {
+    # Interactive per-package pruning (gum only). Writes a filtered Brewfile to a
+    # temp path, exports DOTFILES_BREWFILE, and drops any component coupled to a
+    # deselected "required" package.
+    local orig="${repoDir}/Brewfile"
+    [[ -f "${orig}" ]] || return 0
+
+    local keepfile tmp
+    keepfile="$(mktemp -t roost-keep.XXXXXX)"
+    tmp="$(mktemp -t roost-brewfile.XXXXXX)"
+    : >"${keepfile}"
+
+    local -a groups=()
+    [[ "${brew_cli}" -eq 1 ]] && groups+=(cli)
+    [[ "${brew_apps}" -eq 1 ]] && groups+=(apps)
+    [[ "${brew_wm}" -eq 1 ]] && groups+=(wm)
+    [[ "${brew_sbar}" -eq 1 ]] && groups+=(sbar)
+
+    local group
+    for group in "${groups[@]}"; do
+        _select_group_packages "${group}" "${orig}" "${keepfile}"
+    done
+
+    brewfile_generate "${orig}" "${brew_cli}" "${brew_apps}" "${brew_wm}" "${brew_sbar}" \
+        "${keepfile}" >"${tmp}"
+    rm -f "${keepfile}"
+    export DOTFILES_BREWFILE="${tmp}"
+    print_log -info "Packages" "Using a custom package selection"
+}
+
+_select_group_packages() {
+    local group=$1 orig=$2 keepfile=$3
+    local -a labels=()
+    local -A key_of=() name_of=() req_of=()
+    local type name spec req label
+
+    # spec is unused here (only the generator needs it) but is part of the shared TSV.
+    # shellcheck disable=SC2034
+    while IFS=$'\t' read -r type name spec req; do
+        label="${name}  [${type}]"
+        labels+=("${label}")
+        key_of["${label}"]="${type}:${name}"
+        name_of["${label}"]="${name}"
+        [[ -n "${req}" ]] && req_of["${label}"]="${req}"
+    done < <(brewfile_candidates "${orig}" "${group}")
+
+    [[ ${#labels[@]} -eq 0 ]] && return 0
+
+    local preselect
+    preselect="$(
+        IFS=,
+        printf '%s' "${labels[*]}"
+    )"
+
+    local chosen
+    chosen="$(printf '%s\n' "${labels[@]}" | gum choose --no-limit --height 20 \
+        --header="${group} packages — space toggles, enter keeps the checked set" \
+        --selected="${preselect}")" || true
+
+    for label in "${labels[@]}"; do
+        if grep -Fxq "${label}" <<<"${chosen}"; then
+            printf '%s\n' "${key_of[${label}]}" >>"${keepfile}"
+        elif [[ -n "${req_of[${label}]:-}" ]]; then
+            if prompt_yes_no "'${name_of[${label}]}' is required by: ${req_of[${label}]}. Deselect it and drop those component(s) too?" default_no; then
+                _drop_components "${req_of[${label}]}"
+            else
+                printf '%s\n' "${key_of[${label}]}" >>"${keepfile}"
+            fi
+        fi
+    done
+}
+
+_drop_components() {
+    local csv=$1 comp
+    local -a comps=()
+    IFS=',' read -ra comps <<<"${csv}"
+    for comp in "${comps[@]}"; do
+        case "${comp}" in
+            wm-configs)
+                flg_WmConfigs=0
+                print_log -y "Dropped" "WM configs (a required package was deselected)"
+                ;;
+            services)
+                flg_Services=0
+                print_log -y "Dropped" "Services (a required package was deselected)"
+                ;;
+            configs) flg_Configs=0 ;;
+            shell) flg_Shell=0 ;;
+            macos) flg_Macos=0 ;;
+        esac
+    done
 }
 
 run_interactive() {
@@ -442,6 +539,7 @@ describe_plan() {
 
 main() {
     enable_error_trap
+    trap 'rm -f "${DOTFILES_BREWFILE:-}" 2>/dev/null || true' EXIT
     parse_args "$@"
 
     if [[ "${flg_ResetYabai}" -eq 1 ]]; then

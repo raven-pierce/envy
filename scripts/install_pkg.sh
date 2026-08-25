@@ -15,11 +15,14 @@ if ! homebrew_installed; then
     exit 1
 fi
 
-brewfile="${repoDir}/Brewfile"
+# DOTFILES_BREWFILE is a filtered Brewfile from the interactive per-package
+# picker; fall back to the full repo Brewfile for flag-driven / non-interactive runs.
+brewfile="${DOTFILES_BREWFILE:-${repoDir}/Brewfile}"
 if [[ ! -f "${brewfile}" ]]; then
     print_log -sec "install-pkg" -err "Missing" "Brewfile not found at ${brewfile}"
     exit 1
 fi
+[[ -n "${DOTFILES_BREWFILE:-}" ]] && print_log -sec "install-pkg" -info "Selection" "Installing a custom package selection"
 
 # Default: all groups on when invoked directly
 export DOTFILES_BREW_CLI="${DOTFILES_BREW_CLI:-1}"
